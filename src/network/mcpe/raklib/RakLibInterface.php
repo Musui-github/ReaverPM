@@ -37,9 +37,11 @@ use pocketmine\network\Network;
 use pocketmine\network\NetworkInterfaceStartException;
 use pocketmine\network\PacketHandlingException;
 use pocketmine\player\GameMode;
+use pocketmine\player\Player;
 use pocketmine\Server;
 use pocketmine\thread\ThreadCrashException;
 use pocketmine\timings\Timings;
+use pocketmine\utils\TextFormat;
 use pocketmine\utils\Utils;
 use pocketmine\YmlServerProperties;
 use raklib\generic\DisconnectReason;
@@ -224,9 +226,18 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 
 				$this->interface->blockAddress($address, 5);
 			}catch(\Throwable $e){
-				//record the name of the player who caused the crash, to make it easier to find the reproducing steps
-				$this->server->getLogger()->emergency("Crash occurred while handling a packet from session: $name");
-				throw $e;
+				$logger = $this->server->getLogger();
+				$logger->debug("Packet " . (isset($pk) ? get_class($pk) : "unknown") . ": " . base64_encode($buf));
+				$logger->logException($e);
+
+				$player = $session->getPlayer();
+				if(!$player instanceof Player) {
+					//record the name of the player who caused the crash, to make it easier to find the reproducing steps
+					$this->server->getLogger()->emergency("Crash occurred while handling a packet from session: $name");
+					throw $e;
+				}
+
+				$player->sendMessage(TextFormat::RED . "An internal error occurred while attempting to perform.");
 			}
 		}
 	}
@@ -265,7 +276,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 				"MCPE",
 				rtrim(addcslashes($name, ";"), '\\'),
 				ProtocolInfo::CURRENT_PROTOCOL,
-				ProtocolInfo::MINECRAFT_VERSION_NETWORK,
+				"",
 				$info->getPlayerCount(),
 				$info->getMaxPlayerCount(),
 				$this->rakServerId,

@@ -313,7 +313,7 @@ class NetworkSession{
 	}
 
 	public function getDisplayName() : string{
-		return $this->info !== null ? $this->info->getUsername() : $this->ip . " " . $this->port;
+		return $this->info !== null ? $this->info->getUsername() : "Unknown";
 	}
 
 	/**

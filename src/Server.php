@@ -215,10 +215,6 @@ class Server{
 
 	private TimeTrackingSleeperHandler $tickSleeper;
 
-	private BanList $banByName;
-
-	private BanList $banByIP;
-
 	private Config $operators;
 
 	private Config $whitelist;
@@ -674,14 +670,6 @@ class Server{
 		}else{
 			return null;
 		}
-	}
-
-	public function getNameBans() : BanList{
-		return $this->banByName;
-	}
-
-	public function getIPBans() : BanList{
-		return $this->banByIP;
 	}
 
 	public function addOp(string $name) : void{
@@ -1176,10 +1164,6 @@ class Server{
 
 		if($useQuery){
 			$this->network->registerRawPacketHandler(new QueryHandler($this));
-		}
-
-		foreach($this->getIPBans()->getEntries() as $entry){
-			$this->network->blockAddress($entry->getName(), -1);
 		}
 
 		if($this->configGroup->getPropertyBool(Yml::NETWORK_UPNP_FORWARDING, false)){

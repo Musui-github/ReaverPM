@@ -293,6 +293,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 	protected array $forms = [];
 
 	protected \Logger $logger;
+	protected float $flySpeed = 0.05;
 
 	protected ?SurvivalBlockBreakHandler $blockBreakHandler = null;
 
@@ -334,6 +335,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 		$this->usedChunks[World::chunkHash($xSpawnChunk, $zSpawnChunk)] = UsedChunkStatus::NEEDED;
 
 		parent::__construct($spawnLocation, $this->playerInfo->getSkin(), $namedtag);
+	}
+
+	public function getFlySpeed() : float{
+		return $this->flySpeed;
+	}
+
+	public function setFlySpeed(float $value = 0.05) : void{
+		$this->flySpeed = $value;
 	}
 
 	protected function initHumanData(CompoundTag $nbt) : void{

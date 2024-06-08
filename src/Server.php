@@ -855,27 +855,6 @@ class Server{
 				}
 			}
 
-			$this->logger->info($this->language->translate(KnownTranslationFactory::language_selected($this->language->getName(), $this->language->getLang())));
-
-			if(VersionInfo::IS_DEVELOPMENT_BUILD){
-				if(!$this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_DEV_BUILDS, false)){
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_error1(VersionInfo::NAME)));
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_error2()));
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_error3()));
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_error4(Yml::SETTINGS_ENABLE_DEV_BUILDS)));
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_error5("https://github.com/pmmp/PocketMine-MP/releases")));
-					$this->forceShutdownExit();
-
-					return;
-				}
-
-				$this->logger->warning(str_repeat("-", 40));
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_warning1(VersionInfo::NAME)));
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_warning2()));
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_warning3()));
-				$this->logger->warning(str_repeat("-", 40));
-			}
-
 			$this->memoryManager = new MemoryManager($this);
 
 			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_start(TextFormat::AQUA . $this->getVersion() . TextFormat::RESET)));
@@ -916,38 +895,13 @@ class Server{
 
 			EncryptionContext::$ENABLED = $this->configGroup->getPropertyBool(Yml::NETWORK_ENABLE_ENCRYPTION, true);
 
-			$this->doTitleTick = $this->configGroup->getPropertyBool(Yml::CONSOLE_TITLE_TICK, true) && Terminal::hasFormattingCodes();
+			$this->doTitleTick = false;
 
 			$this->operators = new Config(Path::join($this->dataPath, "ops.txt"), Config::ENUM);
 			$this->whitelist = new Config(Path::join($this->dataPath, "white-list.txt"), Config::ENUM);
 
-			$bannedTxt = Path::join($this->dataPath, "banned.txt");
-			$bannedPlayersTxt = Path::join($this->dataPath, "banned-players.txt");
-			if(file_exists($bannedTxt) && !file_exists($bannedPlayersTxt)){
-				@rename($bannedTxt, $bannedPlayersTxt);
-			}
-			@touch($bannedPlayersTxt);
-			$this->banByName = new BanList($bannedPlayersTxt);
-			$this->banByName->load();
-			$bannedIpsTxt = Path::join($this->dataPath, "banned-ips.txt");
-			@touch($bannedIpsTxt);
-			$this->banByIP = new BanList($bannedIpsTxt);
-			$this->banByIP->load();
-
 			$this->maxPlayers = $this->configGroup->getConfigInt(ServerProperties::MAX_PLAYERS, self::DEFAULT_MAX_PLAYERS);
-
 			$this->onlineMode = $this->configGroup->getConfigBool(ServerProperties::XBOX_AUTH, true);
-			if($this->onlineMode){
-				$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_auth_enabled()));
-			}else{
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_auth_disabled()));
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_authWarning()));
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_authProperty_disabled()));
-			}
-
-			if($this->configGroup->getConfigBool(ServerProperties::HARDCORE, false) && $this->getDifficulty() < World::DIFFICULTY_HARD){
-				$this->configGroup->setConfigInt(ServerProperties::DIFFICULTY, World::DIFFICULTY_HARD);
-			}
 
 			@cli_set_process_title($this->getName() . " " . $this->getPocketMineVersion());
 
@@ -974,7 +928,7 @@ class Server{
 
 			$this->craftingManager = CraftingManagerFromDataHelper::make(Path::join(\pocketmine\BEDROCK_DATA_PATH, "recipes"));
 
-			$this->resourceManager = new ResourcePackManager(Path::join($this->dataPath, "resource_packs"), $this->logger);
+			$this->resourceManager = new ResourcePackManager(Path::join($this->dataPath, "packs"), $this->logger);
 
 			$pluginGraylist = null;
 			$graylistFile = Path::join($this->dataPath, "plugin_list.yml");
@@ -1005,8 +959,6 @@ class Server{
 			$this->worldManager = new WorldManager($this, Path::join($this->dataPath, "worlds"), $providerManager);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool(ServerProperties::AUTO_SAVE, $this->worldManager->getAutoSave()));
 			$this->worldManager->setAutoSaveInterval($this->configGroup->getPropertyInt(Yml::TICKS_PER_AUTOSAVE, $this->worldManager->getAutoSaveInterval()));
-
-			$this->updater = new UpdateChecker($this, $this->configGroup->getPropertyString(Yml::AUTO_UPDATER_HOST, "update.pmmp.io"));
 
 			$this->queryInfo = new QueryInfo($this);
 
@@ -1043,15 +995,7 @@ class Server{
 				return;
 			}
 
-			if($this->configGroup->getPropertyBool(Yml::ANONYMOUS_STATISTICS_ENABLED, true)){
-				$this->sendUsageTicker = self::TICKS_PER_STATS_REPORT;
-				$this->sendUsage(SendUsageTask::TYPE_OPEN);
-			}
-
 			$this->configGroup->save();
-
-			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_defaultGameMode($this->getGamemode()->getTranslatableName())));
-			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_donate(TextFormat::AQUA . "https://patreon.com/pocketminemp" . TextFormat::RESET)));
 			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_startFinished(strval(round(microtime(true) - $this->startTime, 3)))));
 
 			$forwarder = new BroadcastLoggerForwarder($this, $this->logger, $this->language);

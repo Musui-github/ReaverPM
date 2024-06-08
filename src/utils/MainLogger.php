@@ -35,7 +35,7 @@ use const PHP_EOL;
 class MainLogger extends AttachableThreadSafeLogger implements \BufferedLogger{
 	protected bool $logDebug;
 
-	private string $format = TextFormat::RED . "%s " . TextFormat::RESET . "%s[%s/%s]: %s" . TextFormat::RESET;
+	private string $format = TextFormat::RED . "%s " . TextFormat::RESET . "%s[%s/%s] > %s" . TextFormat::RESET;
 	private bool $useFormattingCodes = false;
 	private string $mainThreadName;
 	private string $timezone;

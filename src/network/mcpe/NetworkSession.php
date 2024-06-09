@@ -141,7 +141,6 @@ class NetworkSession{
 	private const INCOMING_GAME_PACKETS_BUFFER_TICKS = 100;
 
 	private PacketRateLimiter $packetBatchLimiter;
-	private PacketRateLimiter $gamePacketLimiter;
 
 	private \PrefixedLogger $logger;
 	private ?Player $player = null;
@@ -207,7 +206,6 @@ class NetworkSession{
 
 		$this->connectTime = time();
 		$this->packetBatchLimiter = new PacketRateLimiter("Packet Batches", self::INCOMING_PACKET_BATCH_PER_TICK, self::INCOMING_PACKET_BATCH_BUFFER_TICKS);
-		$this->gamePacketLimiter = new PacketRateLimiter("Game Packets", self::INCOMING_GAME_PACKETS_PER_TICK, self::INCOMING_GAME_PACKETS_BUFFER_TICKS);
 
 		$this->setHandler(new SessionStartPacketHandler(
 			$this,
@@ -396,7 +394,6 @@ class NetworkSession{
 			try{
 				$stream = new BinaryStream($decompressed);
 				foreach(PacketBatch::decodeRaw($stream) as $buffer){
-					//$this->gamePacketLimiter->decrement();
 					$packet = $this->packetPool->getPacket($buffer);
 					if($packet === null){
 						$this->logger->debug("Unknown packet: " . base64_encode($buffer));

@@ -2257,6 +2257,7 @@ class World implements ChunkManager{
 
 			$ev->call();
 			if($ev->isCancelled()){
+				$this->addSound($hand->getPosition(), new BlockPlaceSound($hand));
 				return false;
 			}
 		}

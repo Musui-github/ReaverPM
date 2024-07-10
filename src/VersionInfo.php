@@ -30,9 +30,9 @@ use function is_int;
 use function str_repeat;
 
 final class VersionInfo{
-	public const NAME = "PocketMine-MP";
-	public const BASE_VERSION = "5.16.1";
-	public const IS_DEVELOPMENT_BUILD = true;
+	public const NAME = "ReaverPM";
+	public const BASE_VERSION = "5.17.0";
+	public const IS_DEVELOPMENT_BUILD = false;
 	public const BUILD_CHANNEL = "stable";
 
 	/**

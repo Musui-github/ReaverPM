@@ -27,7 +27,6 @@ use pocketmine\block\Block;
 use pocketmine\event\Cancellable;
 use pocketmine\event\CancellableTrait;
 use pocketmine\item\Item;
-use pocketmine\player\Player;
 
 /**
  * Called when a player destroys a block somewhere in the world.

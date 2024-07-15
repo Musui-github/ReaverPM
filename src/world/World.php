@@ -2089,7 +2089,7 @@ class World implements ChunkManager{
 
 			$ev->call();
 			if($ev->isCancelled()){
-				$this->addParticle($target->getPosition()->add(0.5, 0.5, 0.5), new BlockBreakParticle($target));
+				$this->addParticle($target->getPosition()->add(0.5, 0.5, 0.5), new BlockBreakParticle($target), [$player]);
 				return false;
 			}
 

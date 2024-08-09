@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace pocketmine\entity;
 
 use pocketmine\entity\utils\ExperienceUtils;
+use pocketmine\event\entity\EntityAddXpEvent;
 use pocketmine\event\player\PlayerExperienceChangeEvent;
 use pocketmine\item\Durable;
 use pocketmine\item\enchantment\VanillaEnchantments;
@@ -149,6 +150,11 @@ class ExperienceManager{
 	 * @param bool $playSound Whether to play level-up and XP gained sounds.
 	 */
 	public function addXp(int $amount, bool $playSound = true) : bool{
+		$ev = new EntityAddXpEvent($this->entity, $amount);
+		$ev->call();
+
+		if($ev->isCancelled()) return false;
+
 		$amount = min($amount, Limits::INT32_MAX - $this->totalXp);
 		$oldLevel = $this->getXpLevel();
 		$oldTotal = $this->getCurrentTotalXp();
@@ -273,7 +279,7 @@ class ExperienceManager{
 		}
 
 		$this->addXp($xpValue); //this will still get fired even if the value is 0 due to mending, to play sounds
-		$this->resetXpCooldown();
+		//$this->resetXpCooldown();
 	}
 
 	/**

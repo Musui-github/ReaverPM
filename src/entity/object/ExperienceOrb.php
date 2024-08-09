@@ -212,7 +212,7 @@ class ExperienceOrb extends Entity{
 				$this->motion = $this->motion->addVector($vector->normalize()->multiply(0.2 * (1 - sqrt($distance)) ** 2));
 			}
 
-			if($currentTarget->getXpManager()->canPickupXp() && $this->boundingBox->intersectsWith($currentTarget->getBoundingBox())){
+			if($this->boundingBox->intersectsWith($currentTarget->getBoundingBox())){
 				$this->flagForDespawn();
 
 				$currentTarget->getXpManager()->onPickupXp($this->getXpValue());

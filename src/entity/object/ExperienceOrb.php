@@ -49,7 +49,7 @@ class ExperienceOrb extends Entity{
 	/** Split sizes used for dropping experience orbs. */
 	public const ORB_SPLIT_SIZES = [2477, 1237, 617, 307, 149, 73, 37, 17, 7, 3, 1]; //This is indexed biggest to smallest so that we can return as soon as we found the biggest value.
 
-	public const DEFAULT_DESPAWN_DELAY = 6000;
+	public const DEFAULT_DESPAWN_DELAY = 20 * 15;
 	public const NEVER_DESPAWN = -1;
 	public const MAX_DESPAWN_DELAY = 32767 + self::DEFAULT_DESPAWN_DELAY; //max value storable by mojang NBT :(
 
@@ -188,35 +188,18 @@ class ExperienceOrb extends Entity{
 			$currentTarget = null;
 		}
 
-		if($this->lookForTargetTime >= 20){
-			if($currentTarget === null){
-				$newTarget = $this->getWorld()->getNearestEntity($this->location, self::MAX_TARGET_DISTANCE, Human::class);
+		if($currentTarget === null){
+			$newTarget = $this->getWorld()->getNearestEntity($this->location, self::MAX_TARGET_DISTANCE, Human::class);
 
-				if($newTarget instanceof Human && !($newTarget instanceof Player && $newTarget->isSpectator()) && $newTarget->getXpManager()->canAttractXpOrbs()){
-					$currentTarget = $newTarget;
-				}
+			if($newTarget instanceof Human && !($newTarget instanceof Player && $newTarget->isSpectator()) && $newTarget->getXpManager()->canAttractXpOrbs()){
+				$currentTarget = $newTarget;
 			}
-
-			$this->lookForTargetTime = 0;
-		}else{
-			$this->lookForTargetTime += $tickDiff;
 		}
 
 		$this->setTargetPlayer($currentTarget);
-
 		if($currentTarget !== null){
-			$vector = $currentTarget->getPosition()->add(0, $currentTarget->getEyeHeight() / 2, 0)->subtractVector($this->location)->divide(self::MAX_TARGET_DISTANCE);
-
-			$distance = $vector->lengthSquared();
-			if($distance < 1){
-				$this->motion = $this->motion->addVector($vector->normalize()->multiply(0.2 * (1 - sqrt($distance)) ** 2));
-			}
-
-			if($this->boundingBox->intersectsWith($currentTarget->getBoundingBox())){
-				$this->flagForDespawn();
-
-				$currentTarget->getXpManager()->onPickupXp($this->getXpValue());
-			}
+			$this->flagForDespawn();
+			$currentTarget->getXpManager()->onPickupXp($this->getXpValue());
 		}
 
 		return $hasUpdate;

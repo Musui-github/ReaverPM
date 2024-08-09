@@ -2015,19 +2015,13 @@ class World implements ChunkManager{
 	 * @phpstan-return list<ExperienceOrb>
 	 */
 	public function dropExperience(Vector3 $pos, int $amount) : array{
-		/** @var ExperienceOrb[] $orbs */
-		$orbs = [];
 
-		foreach(ExperienceOrb::splitIntoOrbSizes($amount) as $split){
-			$orb = new ExperienceOrb(Location::fromObject($pos, $this, lcg_value() * 360, 0), $split);
+		$orb = new ExperienceOrb(Location::fromObject($pos, $this, lcg_value() * 360, 0), $amount);
 
-			$orb->setMotion(new Vector3((lcg_value() * 0.2 - 0.1) * 2, lcg_value() * 0.4, (lcg_value() * 0.2 - 0.1) * 2));
-			$orb->spawnToAll();
+		$orb->setMotion(new Vector3((lcg_value() * 0.2 - 0.1) * 2, lcg_value() * 0.4, (lcg_value() * 0.2 - 0.1) * 2));
+		$orb->spawnToAll();
 
-			$orbs[] = $orb;
-		}
-
-		return $orbs;
+		return [$orb];
 	}
 
 	/**

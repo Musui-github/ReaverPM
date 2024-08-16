@@ -962,9 +962,7 @@ class NetworkSession{
 	}
 
 	public function onServerRespawn() : void{
-		$recipients = [$this];
-		foreach($this->player->getViewers() as $viewer) if($viewer->isConnected()) $recipients[] = $viewer->getNetworkSession();
-		$this->entityEventBroadcaster->syncAttributes($recipients, $this->player, $this->player->getAttributeMap()->getAll());
+		$this->entityEventBroadcaster->syncAttributes([$this], $this->player, $this->player->getAttributeMap()->getAll());
 		$this->player->sendData(null);
 
 		$this->syncAbilities($this->player);
@@ -1305,11 +1303,8 @@ class NetworkSession{
 
 		if($this->player !== null){
 			$this->player->doChunkRequests();
-
 			$dirtyAttributes = $this->player->getAttributeMap()->needSend();
-			$recipients = [$this];
-			foreach($this->player->getViewers() as $viewer) if($viewer->isConnected()) $recipients[] = $viewer->getNetworkSession();
-			$this->entityEventBroadcaster->syncAttributes($recipients, $this->player, $dirtyAttributes);
+			$this->entityEventBroadcaster->syncAttributes([$this], $this->player, $dirtyAttributes);
 			foreach($dirtyAttributes as $attribute){
 				//TODO: we might need to send these to other players in the future
 				//if that happens, this will need to become more complex than a flag on the attribute itself

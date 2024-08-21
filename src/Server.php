@@ -1635,7 +1635,7 @@ class Server{
 
 		$session = $player->getNetworkSession();
 		$position = $player->getPosition();
-		$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_player_logIn(
+		$this->logger->info(str_replace("[/{$session->getIp()}:{$session->getPort()}]", "", $this->language->translate(KnownTranslationFactory::pocketmine_player_logIn(
 			TextFormat::AQUA . $player->getName() . TextFormat::RESET,
 			$session->getIp(),
 			(string) $session->getPort(),
@@ -1644,7 +1644,7 @@ class Server{
 			(string) round($position->x, 4),
 			(string) round($position->y, 4),
 			(string) round($position->z, 4)
-		)));
+		))));
 
 		foreach($this->playerList as $p){
 			$p->getNetworkSession()->onPlayerAdded($player);

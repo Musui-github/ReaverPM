@@ -29,6 +29,8 @@ namespace pocketmine\command;
 use pocketmine\command\utils\CommandException;
 use pocketmine\lang\KnownTranslationFactory;
 use pocketmine\lang\Translatable;
+use pocketmine\network\mcpe\protocol\types\command\CommandData;
+use pocketmine\network\mcpe\protocol\types\command\CommandOverload;
 use pocketmine\permission\PermissionManager;
 use pocketmine\Server;
 use pocketmine\utils\BroadcastLoggerForwarder;
@@ -78,6 +80,13 @@ abstract class Command{
 	 * @throws CommandException
 	 */
 	abstract public function execute(CommandSender $sender, string $commandLabel, array $args);
+
+	/**
+	 * @return null|CommandOverload[]
+	 */
+	public function buildOverloads() : ?array{
+		return null;
+	}
 
 	public function getName() : string{
 		return $this->name;

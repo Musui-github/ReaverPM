@@ -1109,9 +1109,7 @@ class NetworkSession{
 				0,
 				0,
 				$aliasObj,
-				[
-					new CommandOverload(chaining: false, parameters: [CommandParameter::standard("args", AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, true)])
-				],
+				$command->buildOverloads() ?? [new CommandOverload(chaining: false, parameters: [CommandParameter::standard("args", AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, true)])],
 				chainedSubCommandData: []
 			);
 

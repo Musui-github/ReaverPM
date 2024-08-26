@@ -115,8 +115,9 @@ class TypeConverter{
 		return match($gamemode){
 			GameMode::SURVIVAL => ProtocolGameMode::SURVIVAL,
 			//TODO: native spectator support
-			GameMode::CREATIVE, GameMode::SPECTATOR => ProtocolGameMode::CREATIVE,
+			GameMode::CREATIVE => ProtocolGameMode::CREATIVE,
 			GameMode::ADVENTURE => ProtocolGameMode::ADVENTURE,
+			GameMode::SPECTATOR => 6,
 		};
 	}
 
@@ -125,8 +126,8 @@ class TypeConverter{
 			ProtocolGameMode::SURVIVAL => GameMode::SURVIVAL,
 			ProtocolGameMode::CREATIVE => GameMode::CREATIVE,
 			ProtocolGameMode::ADVENTURE => GameMode::ADVENTURE,
-			ProtocolGameMode::SURVIVAL_VIEWER, ProtocolGameMode::CREATIVE_VIEWER => GameMode::SPECTATOR,
-			//TODO: native spectator support
+			ProtocolGameMode::SURVIVAL_VIEWER, ProtocolGameMode::CREATIVE_VIEWER, 6 => GameMode::SPECTATOR,
+			//TODO: native spectator support (why?)
 			default => null,
 		};
 	}

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe;
 
+use pocketmine\command\defaults\VanillaCommand;
 use pocketmine\entity\effect\EffectInstance;
 use pocketmine\event\player\PlayerDuplicateLoginEvent;
 use pocketmine\event\player\PlayerResourcePackOfferEvent;
@@ -1085,8 +1086,13 @@ class NetworkSession{
 	}
 
 	public function syncAvailableCommands() : void{
+		$commandMap = $this->server->getCommandMap();
+
 		$commandData = [];
-		foreach($this->server->getCommandMap()->getCommands() as $name => $command){
+		$softEnums = [];
+		$hardcodedEnums = [];
+		$enumConstraints = [];
+		foreach($commandMap->getCommands() as $name => $command){
 			if(isset($commandData[$command->getLabel()]) || $command->getLabel() === "help" || !$command->testPermissionSilent($this->player)){
 				continue;
 			}
@@ -1109,14 +1115,14 @@ class NetworkSession{
 				0,
 				0,
 				$aliasObj,
-				$command->buildOverloads() ?? [new CommandOverload(chaining: false, parameters: [CommandParameter::standard("args", AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, true)])],
+				$command->buildOverloads($hardcodedEnums, $softEnums, $enumConstraints) ?? [new CommandOverload(chaining: false, parameters: [CommandParameter::standard("args", AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, true)])],
 				chainedSubCommandData: []
 			);
 
 			$commandData[$command->getLabel()] = $data;
 		}
 
-		$this->sendDataPacket(AvailableCommandsPacket::create($commandData, [], [], []));
+		$this->sendDataPacket(AvailableCommandsPacket::create($commandData, hardcodedEnums: $hardcodedEnums, softEnums: $softEnums, enumConstraints: $enumConstraints));
 	}
 
 	/**

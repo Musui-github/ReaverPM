@@ -39,7 +39,6 @@ use pocketmine\network\mcpe\protocol\types\command\CommandEnumConstraint;
 use pocketmine\network\mcpe\protocol\types\command\CommandOverload;
 use pocketmine\network\mcpe\protocol\types\command\CommandParameter;
 use pocketmine\permission\DefaultPermissionNames;
-use pocketmine\player\GameMode;
 use pocketmine\utils\TextFormat;
 use function array_slice;
 use function count;

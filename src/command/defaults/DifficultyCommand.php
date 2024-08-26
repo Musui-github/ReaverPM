@@ -33,7 +33,6 @@ use pocketmine\network\mcpe\protocol\types\command\CommandEnumConstraint;
 use pocketmine\network\mcpe\protocol\types\command\CommandOverload;
 use pocketmine\network\mcpe\protocol\types\command\CommandParameter;
 use pocketmine\permission\DefaultPermissionNames;
-use pocketmine\player\GameMode;
 use pocketmine\ServerProperties;
 use pocketmine\world\World;
 use ReflectionClass;

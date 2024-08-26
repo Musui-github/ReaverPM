@@ -1115,7 +1115,7 @@ class NetworkSession{
 				0,
 				0,
 				$aliasObj,
-				$command->buildOverloads($hardcodedEnums, $softEnums, $enumConstraints) ?? [new CommandOverload(chaining: false, parameters: [CommandParameter::standard("args", AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, true)])],
+				$command->buildOverloads($hardcodedEnums, $softEnums, $enumConstraints),
 				chainedSubCommandData: []
 			);
 

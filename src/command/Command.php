@@ -29,10 +29,12 @@ namespace pocketmine\command;
 use pocketmine\command\utils\CommandException;
 use pocketmine\lang\KnownTranslationFactory;
 use pocketmine\lang\Translatable;
+use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\types\command\CommandData;
 use pocketmine\network\mcpe\protocol\types\command\CommandEnum;
 use pocketmine\network\mcpe\protocol\types\command\CommandEnumConstraint;
 use pocketmine\network\mcpe\protocol\types\command\CommandOverload;
+use pocketmine\network\mcpe\protocol\types\command\CommandParameter;
 use pocketmine\permission\PermissionManager;
 use pocketmine\Server;
 use pocketmine\utils\BroadcastLoggerForwarder;
@@ -91,7 +93,7 @@ abstract class Command{
 	 * @return null|CommandOverload[]
 	 */
 	public function buildOverloads(array &$hardcodedEnums, array &$softEnums, array &$enumConstraints) : ?array{
-		return null;
+		return [new CommandOverload(chaining: false, parameters: [CommandParameter::standard("args", AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, true)])];
 	}
 
 	public function getName() : string{

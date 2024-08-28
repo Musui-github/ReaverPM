@@ -44,6 +44,7 @@ use pocketmine\event\player\PlayerDataSaveEvent;
 use pocketmine\event\player\PlayerLoginEvent;
 use pocketmine\event\server\CommandEvent;
 use pocketmine\event\server\QueryRegenerateEvent;
+use pocketmine\event\server\ServerTickEvent;
 use pocketmine\lang\KnownTranslationFactory;
 use pocketmine\lang\Language;
 use pocketmine\lang\LanguageNotFoundException;
@@ -1781,6 +1782,9 @@ class Server{
 			}
 			Timings::$serverCommand->stopTiming();
 		}
+
+		$ev = new ServerTickEvent($this->getTick());
+		$ev->call();
 
 		Timings::$serverTick->stopTiming();
 

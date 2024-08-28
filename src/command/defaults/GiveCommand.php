@@ -67,13 +67,12 @@ class GiveCommand extends VanillaCommand{
 	public function buildOverloads(array &$hardcodedEnums, array &$softEnums, array &$enumConstraints) : ?array{
 		/** @var string[] $itemOptions */
 		$itemOptions = StringToItemParser::getInstance()->getKnownAliases();
-		$itemName = new CommandEnum('Item', $itemOptions, true);
-
+		$itemName = new CommandEnum('Item', $itemOptions, false);
 		$hardcodedEnums[mb_strtolower($itemName->getName())] = $itemName;
 		return [
 			new CommandOverload(chaining: false, parameters: [
 				CommandParameter::standard("player", AvailableCommandsPacket::ARG_TYPE_TARGET, 0, false),
-				CommandParameter::enum("item", $itemName, 0, false),
+				CommandParameter::enum("itemName", $itemName, 0, false),
 				CommandParameter::standard("amount", AvailableCommandsPacket::ARG_TYPE_INT, 0, true),
 				CommandParameter::standard("data", AvailableCommandsPacket::ARG_TYPE_JSON, 0, true),
 			]),

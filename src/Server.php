@@ -1683,7 +1683,7 @@ class Server{
 			(string) round($position->x, 4),
 			(string) round($position->y, 4),
 			(string) round($position->z, 4)
-		)));
+		))));
 
 		foreach($this->playerList as $p){
 			$p->getNetworkSession()->onPlayerAdded($player);

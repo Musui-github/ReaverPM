@@ -360,18 +360,14 @@ class NetworkSession{
 			return;
 		}
 
-		Timings::$playerNetworkReceive->startTiming();
 		$this->packetBatchLimiter->decrement();
 
 		if($this->cipher !== null){
-			Timings::$playerNetworkReceiveDecrypt->startTiming();
 			try{
 				$payload = $this->cipher->decrypt($payload);
 			}catch(DecryptionException $e){
 				$this->logger->debug("Encrypted packet: " . base64_encode($payload));
 				throw PacketHandlingException::wrap($e, "Packet decryption error");
-			}finally{
-				Timings::$playerNetworkReceiveDecrypt->stopTiming();
 			}
 		}
 
@@ -390,7 +386,6 @@ class NetworkSession{
 							}
 						}
 					} else $this->disconnectWithError($response->getMessage());
-					Timings::$playerNetworkReceive->stopTiming();
 				}
 		));
 	}
@@ -403,9 +398,6 @@ class NetworkSession{
 			throw new PacketHandlingException("Unexpected non-serverbound packet");
 		}
 
-		$timings = Timings::getReceiveDataPacketTimings($packet);
-		$timings->startTiming();
-
 		if(DataPacketDecodeEvent::hasHandlers()){
 			$ev = new DataPacketDecodeEvent($this, $packet->pid(), $buffer);
 			$ev->call();
@@ -413,11 +405,7 @@ class NetworkSession{
 				return;
 			}
 		}
-
-		$decodeTimings = Timings::getDecodeDataPacketTimings($packet);
-		$decodeTimings->startTiming();
-		MultiThreading::getInstance()->get($this->threadId)->addOperation(new SerializerDecodeOperation($packet, $buffer, function(SerializerResponse $response) use($decodeTimings, $timings): void {
-			$decodeTimings->stopTiming();
+		MultiThreading::getInstance()->get($this->threadId)->addOperation(new SerializerDecodeOperation($packet, $buffer, function(SerializerResponse $response): void {
 			if(DataPacketReceiveEvent::hasHandlers()){
 				$ev = new DataPacketReceiveEvent($this, $response->getPacket());
 				$ev->call();
@@ -425,17 +413,9 @@ class NetworkSession{
 					return;
 				}
 			}
-			$handlerTimings = Timings::getHandleDataPacketTimings($response->getPacket());
-			$handlerTimings->startTiming();
-			try{
-				if($this->handler === null || !$response->getPacket()->handle($this->handler)){
-					$this->logger->debug("Unhandled " . $response->getPacket()->getName() . ": " . base64_encode($response->getStream()->getBuffer()));
-				}
-			}finally{
-				$handlerTimings->stopTiming();
+			if($this->handler === null || !$response->getPacket()->handle($this->handler)){
+				$this->logger->debug("Unhandled " . $response->getPacket()->getName() . ": " . base64_encode($response->getStream()->getBuffer()));
 			}
-
-			$timings->stopTiming();
 		}));
 	}
 

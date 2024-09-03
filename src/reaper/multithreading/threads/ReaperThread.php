@@ -6,7 +6,6 @@ use pmmp\thread\ThreadSafeArray;
 use pocketmine\reaper\multithreading\operation\ThreadOperation;
 use pocketmine\snooze\SleeperHandlerEntry;
 use pocketmine\thread\Thread;
-use ReaverKitMap\threads\operations\DefaultThreadOperation;
 
 class ReaperThread extends Thread{
 	public function __construct(

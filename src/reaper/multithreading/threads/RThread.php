@@ -11,12 +11,12 @@ use pocketmine\snooze\SleeperHandlerEntry;
 
 class RThread{
 	protected ReaperThread $thread;
+	protected int $sleeperId;
+	protected ThreadSafeArray $in;
+	protected ThreadSafeArray $out;
 
 	public function __construct(
-		private string $threadId,
-		private SleeperHandlerEntry $sleeperEntry,
-		private ThreadSafeArray $in,
-		private ThreadSafeArray $out
+		private readonly string $threadId,
 	){ }
 
 	/**
@@ -24,13 +24,6 @@ class RThread{
 	 */
 	public function getThreadId() : string{
 		return $this->threadId;
-	}
-
-	/**
-	 * @return SleeperHandlerEntry
-	 */
-	public function getSleeperEntry() : SleeperHandlerEntry{
-		return $this->sleeperEntry;
 	}
 
 	/**
@@ -47,26 +40,37 @@ class RThread{
 		return $this->out;
 	}
 
+	/**
+	 * @return int
+	 */
+	public function getSleeperId() : int{
+		return $this->sleeperId;
+	}
+
 	public function start() : void{
 		$this->in = new ThreadSafeArray();
 		$this->out = new ThreadSafeArray();
 
-		$this->sleeperEntry = Server::getInstance()->getTickSleeper()->addNotifier(function (): void {
-			while(($raw = $this->getIn()->shift())){
-				$response = igbinary_unserialize($raw);
-				$identifier = $response[0];
-				$data = $response[1];
+		$sleeperEntry = Server::getInstance()->getTickSleeper()->addNotifier($this->onMessageFromThread(...));
+		$this->sleeperId = $sleeperEntry->getNotifierId();
 
-				ClosureStorage::executeClosure($identifier, $data);
-			}
-		});
-
-		$this->thread = new ReaperThread($this->sleeperEntry, $this->in, $this->out);
-		$this->thread->start();
+		$thread = new ReaperThread($sleeperEntry, $this->out, $this->in);
+		$thread->start();
+		$this->thread = $thread;
 	}
 
 	public function stop() : void{
 		$this->thread->quit();
+	}
+
+	public function onMessageFromThread(): void {
+		while(($raw = $this->in->shift())){
+			$response = igbinary_unserialize($raw);
+			$identifier = $response[0];
+			$data = $response[1];
+
+			ClosureStorage::executeClosure($identifier, $data);
+		}
 	}
 
 	public function addOperation(ThreadOperation $operation) : void{

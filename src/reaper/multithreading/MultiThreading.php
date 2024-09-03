@@ -25,9 +25,8 @@ class MultiThreading{
 	 * @return void
 	 */
 	public function create(string $threadId) : void{
-		$thread = new RThread($threadId);
+		$this->threads[$threadId] = $thread = new RThread($threadId);
 		$thread->start();
-		$this->threads[$thread->getThreadId()] = $thread;
 	}
 
 	/**
@@ -38,7 +37,7 @@ class MultiThreading{
 	public function exit(string $threadId) : void{
 		if(!isset($this->threads[$threadId])) return;
 		$thread = $this->threads[$threadId];
-		$sleeperId = $thread->getSleeperEntry()->getNotifierId();
+		$sleeperId = $thread->getSleeperId();
 		Server::getInstance()->getTickSleeper()->removeNotifier($sleeperId);
 		$thread->stop();
 	}

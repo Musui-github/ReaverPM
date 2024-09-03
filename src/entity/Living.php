@@ -885,30 +885,6 @@ abstract class Living extends Entity{
 	protected function syncNetworkData(EntityMetadataCollection $properties) : void{
 		parent::syncNetworkData($properties);
 
-		$visibleEffects = [];
-		foreach ($this->effectManager->all() as $effect) {
-			if (!$effect->isVisible() || !$effect->getType()->hasBubbles()) {
-				continue;
-			}
-			$visibleEffects[EffectIdMap::getInstance()->toId($effect->getType())] = $effect->isAmbient();
-		}
-
-		//TODO: HACK! the client may not be able to identify effects if they are not sorted.
-		ksort($visibleEffects, SORT_NUMERIC);
-
-		$effectsData = 0;
-		$packedEffectsCount = 0;
-		foreach ($visibleEffects as $effectId => $isAmbient) {
-			$effectsData = ($effectsData << 7) |
-				(($effectId & 0x3f) << 1) | //Why not use 7 bits instead of only 6? mojang...
-				($isAmbient ? 1 : 0);
-
-			if (++$packedEffectsCount >= 8) {
-				break;
-			}
-		}
-		$properties->setLong(EntityMetadataProperties::VISIBLE_MOB_EFFECTS, $effectsData);
-
 		$properties->setShort(EntityMetadataProperties::AIR, $this->breathTicks);
 		$properties->setShort(EntityMetadataProperties::MAX_AIR, $this->maxBreathTicks);
 

@@ -6,6 +6,7 @@ use pocketmine\network\mcpe\compression\Compressor;
 use pocketmine\network\mcpe\compression\DecompressionException;
 use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\PacketPool;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\network\PacketHandlingException;
@@ -50,6 +51,10 @@ class PacketDecodeOperation extends ThreadOperation{
 			}
 		}
 
+		if(strlen($decompressed) >= 200000){
+			return new PacketHandlingException("Decompressed payload too big");
+		}
+
 		try{
 			$stream = new BinaryStream($decompressed);
 			$response = new PacketDecodingResponse();
@@ -57,6 +62,17 @@ class PacketDecodeOperation extends ThreadOperation{
 				$packet = PacketPool::getInstance()->getPacket($buffer);
 				if(is_null($packet)){
 					return new PacketHandlingException("Unknown packet received");
+				}
+
+				switch($packet->pid()) {
+					case ProtocolInfo::LOGIN_PACKET:
+					case ProtocolInfo::PLAYER_SKIN_PACKET:
+						break;
+					default:
+						if(strlen($buffer) >= 15000) {
+							continue 2;
+						}
+						break;
 				}
 
 				$response->add($packet, $buffer);

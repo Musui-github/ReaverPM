@@ -26,7 +26,6 @@ namespace pocketmine\player;
 use pocketmine\block\BaseSign;
 use pocketmine\block\Bed;
 use pocketmine\block\BlockTypeTags;
-use pocketmine\block\RuntimeBlockStateRegistry;
 use pocketmine\block\UnknownBlock;
 use pocketmine\block\VanillaBlocks;
 use pocketmine\command\CommandSender;
@@ -107,9 +106,7 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
-use pocketmine\network\mcpe\protocol\DebugInfoPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
@@ -338,14 +335,6 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 		$this->usedChunks[World::chunkHash($xSpawnChunk, $zSpawnChunk)] = UsedChunkStatus::NEEDED;
 
 		parent::__construct($spawnLocation, $this->playerInfo->getSkin(), $namedtag);
-	}
-
-	public function getFlySpeed() : float{
-		return $this->flySpeed;
-	}
-
-	public function setFlySpeed(float $value = 0.05) : void{
-		$this->flySpeed = $value;
 	}
 
 	protected function initHumanData(CompoundTag $nbt) : void{
@@ -2145,13 +2134,6 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 		}
 	}
 
-	/**
-	 * Closes the current viewing form and forms in queue.
-	 */
-	public function closeAllForms() : void{
-		$this->getNetworkSession()->onCloseAllForms();
-	}
-
 	public function onFormSubmit(int $formId, mixed $responseData) : bool{
 		if(!isset($this->forms[$formId])){
 			$this->logger->debug("Got unexpected response for form $formId");
@@ -2168,6 +2150,13 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 		}
 
 		return true;
+	}
+
+	/**
+	 * Closes the current viewing form and forms in queue.
+	 */
+	public function closeAllForms() : void{
+		$this->getNetworkSession()->onCloseAllForms();
 	}
 
 	/**
@@ -2404,6 +2393,13 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 	}
 
 	public function respawn() : void{
+		if($this->server->isHardcore()){
+			if($this->kick(KnownTranslationFactory::pocketmine_disconnect_ban(KnownTranslationFactory::pocketmine_disconnect_ban_hardcore()))){ //this allows plugins to prevent the ban by cancelling PlayerKickEvent
+				$this->server->getNameBans()->addBan($this->getName(), "Died in hardcore mode");
+			}
+			return;
+		}
+
 		$this->actuallyRespawn();
 	}
 
@@ -2721,5 +2717,23 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 			$this->logger->debug("Detected forced unload of chunk " . $chunkX . " " . $chunkZ);
 			$this->unloadChunk($chunkX, $chunkZ);
 		}
+	}
+
+	/**
+	 * ReaverPM
+	 * @return float
+	 */
+	public function getFlySpeed() : float{
+		return $this->flySpeed;
+	}
+
+	/**
+	 * ReaverPM
+	 * @param float $value
+	 *
+	 * @return void
+	 */
+	public function setFlySpeed(float $value = 0.05) : void{
+		$this->flySpeed = $value;
 	}
 }

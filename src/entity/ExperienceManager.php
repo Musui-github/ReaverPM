@@ -279,7 +279,7 @@ class ExperienceManager{
 		}
 
 		$this->addXp($xpValue); //this will still get fired even if the value is 0 due to mending, to play sounds
-		//$this->resetXpCooldown();
+		$this->resetXpCooldown();
 	}
 
 	/**

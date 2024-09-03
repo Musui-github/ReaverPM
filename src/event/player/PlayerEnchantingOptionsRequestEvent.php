@@ -26,6 +26,7 @@ namespace pocketmine\event\player;
 use pocketmine\block\inventory\EnchantInventory;
 use pocketmine\event\Cancellable;
 use pocketmine\event\CancellableTrait;
+use pocketmine\event\Event;
 use pocketmine\item\enchantment\EnchantingOption;
 use pocketmine\player\Player;
 use pocketmine\utils\Utils;

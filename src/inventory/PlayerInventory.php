@@ -25,6 +25,7 @@ namespace pocketmine\inventory;
 
 use pocketmine\entity\Human;
 use pocketmine\item\Item;
+use pocketmine\player\Player;
 use pocketmine\utils\ObjectSet;
 
 class PlayerInventory extends SimpleInventory{

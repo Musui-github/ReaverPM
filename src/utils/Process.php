@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace pocketmine\utils;
 
 use pocketmine\thread\Thread;
+use function count;
 use function exec;
 use function fclose;
 use function file;

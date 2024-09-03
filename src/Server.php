@@ -70,6 +70,7 @@ use pocketmine\network\query\DedicatedQueryNetworkInterface;
 use pocketmine\network\query\QueryHandler;
 use pocketmine\network\query\QueryInfo;
 use pocketmine\network\upnp\UPnPNetworkInterface;
+use pocketmine\permission\BanList;
 use pocketmine\permission\DefaultPermissions;
 use pocketmine\player\DatFilePlayerDataProvider;
 use pocketmine\player\GameMode;
@@ -107,6 +108,7 @@ use pocketmine\utils\NotCloneable;
 use pocketmine\utils\NotSerializable;
 use pocketmine\utils\Process;
 use pocketmine\utils\SignalHandler;
+use pocketmine\utils\Terminal;
 use pocketmine\utils\TextFormat;
 use pocketmine\utils\Utils;
 use pocketmine\world\format\io\WorldProviderManager;
@@ -151,6 +153,7 @@ use function ob_end_flush;
 use function preg_replace;
 use function realpath;
 use function register_shutdown_function;
+use function rename;
 use function round;
 use function sleep;
 use function spl_object_id;
@@ -212,6 +215,10 @@ class Server{
 	private static ?Server $instance = null;
 
 	private TimeTrackingSleeperHandler $tickSleeper;
+
+	private BanList $banByName;
+
+	private BanList $banByIP;
 
 	private Config $operators;
 
@@ -670,6 +677,14 @@ class Server{
 		}
 	}
 
+	public function getNameBans() : BanList{
+		return $this->banByName;
+	}
+
+	public function getIPBans() : BanList{
+		return $this->banByIP;
+	}
+
 	public function addOp(string $name) : void{
 		$this->operators->set(strtolower($name), true);
 
@@ -841,6 +856,8 @@ class Server{
 				}
 			}
 
+			$this->logger->info($this->language->translate(KnownTranslationFactory::language_selected($this->language->getName(), $this->language->getLang())));
+
 			$this->memoryManager = new MemoryManager($this);
 
 			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_start(TextFormat::AQUA . $this->getVersion() . TextFormat::RESET)));
@@ -881,13 +898,31 @@ class Server{
 
 			EncryptionContext::$ENABLED = $this->configGroup->getPropertyBool(Yml::NETWORK_ENABLE_ENCRYPTION, true);
 
-			$this->doTitleTick = false;
+			$this->doTitleTick = $this->configGroup->getPropertyBool(Yml::CONSOLE_TITLE_TICK, true) && Terminal::hasFormattingCodes();
 
 			$this->operators = new Config(Path::join($this->dataPath, "ops.txt"), Config::ENUM);
 			$this->whitelist = new Config(Path::join($this->dataPath, "white-list.txt"), Config::ENUM);
 
+			$bannedTxt = Path::join($this->dataPath, "banned.txt");
+			$bannedPlayersTxt = Path::join($this->dataPath, "banned-players.txt");
+			if(file_exists($bannedTxt) && !file_exists($bannedPlayersTxt)){
+				@rename($bannedTxt, $bannedPlayersTxt);
+			}
+			@touch($bannedPlayersTxt);
+			$this->banByName = new BanList($bannedPlayersTxt);
+			$this->banByName->load();
+			$bannedIpsTxt = Path::join($this->dataPath, "banned-ips.txt");
+			@touch($bannedIpsTxt);
+			$this->banByIP = new BanList($bannedIpsTxt);
+			$this->banByIP->load();
+
 			$this->maxPlayers = $this->configGroup->getConfigInt(ServerProperties::MAX_PLAYERS, self::DEFAULT_MAX_PLAYERS);
+
 			$this->onlineMode = $this->configGroup->getConfigBool(ServerProperties::XBOX_AUTH, true);
+
+			if($this->configGroup->getConfigBool(ServerProperties::HARDCORE, false) && $this->getDifficulty() < World::DIFFICULTY_HARD){
+				$this->configGroup->setConfigInt(ServerProperties::DIFFICULTY, World::DIFFICULTY_HARD);
+			}
 
 			@cli_set_process_title($this->getName() . " " . $this->getPocketMineVersion());
 
@@ -899,10 +934,6 @@ class Server{
 			$this->network = new Network($this->logger);
 			$this->network->setName($this->getMotd());
 
-			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_info(
-				$this->getName(),
-				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getPocketMineVersion() . TextFormat::RESET
-			)));
 			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_license($this->getName())));
 
 			TimingsHandler::setEnabled($this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_PROFILING, false));
@@ -914,7 +945,7 @@ class Server{
 
 			$this->craftingManager = CraftingManagerFromDataHelper::make(Path::join(\pocketmine\BEDROCK_DATA_PATH, "recipes"));
 
-			$this->resourceManager = new ResourcePackManager(Path::join($this->dataPath, "packs"), $this->logger);
+			$this->resourceManager = new ResourcePackManager(Path::join($this->dataPath, "resource_packs"), $this->logger);
 
 			$pluginGraylist = null;
 			$graylistFile = Path::join($this->dataPath, "plugin_list.yml");
@@ -945,6 +976,8 @@ class Server{
 			$this->worldManager = new WorldManager($this, Path::join($this->dataPath, "worlds"), $providerManager);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool(ServerProperties::AUTO_SAVE, $this->worldManager->getAutoSave()));
 			$this->worldManager->setAutoSaveInterval($this->configGroup->getPropertyInt(Yml::TICKS_PER_AUTOSAVE, $this->worldManager->getAutoSaveInterval()));
+
+			$this->updater = new UpdateChecker($this, $this->configGroup->getPropertyString(Yml::AUTO_UPDATER_HOST, "update.pmmp.io"));
 
 			$this->queryInfo = new QueryInfo($this);
 
@@ -982,6 +1015,7 @@ class Server{
 			}
 
 			$this->configGroup->save();
+
 			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_startFinished(strval(round(microtime(true) - $this->startTime, 3)))));
 
 			$forwarder = new BroadcastLoggerForwarder($this, $this->logger, $this->language);
@@ -1162,6 +1196,10 @@ class Server{
 
 		if($useQuery){
 			$this->network->registerRawPacketHandler(new QueryHandler($this));
+		}
+
+		foreach($this->getIPBans()->getEntries() as $entry){
+			$this->network->blockAddress($entry->getName(), -1);
 		}
 
 		if($this->configGroup->getPropertyBool(Yml::NETWORK_UPNP_FORWARDING, false)){
@@ -1645,7 +1683,7 @@ class Server{
 			(string) round($position->x, 4),
 			(string) round($position->y, 4),
 			(string) round($position->z, 4)
-		))));
+		)));
 
 		foreach($this->playerList as $p){
 			$p->getNetworkSession()->onPlayerAdded($player);

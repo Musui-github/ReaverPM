@@ -71,9 +71,9 @@ class ResourcePackManager{
 			throw new \InvalidArgumentException("Resource packs path $path exists and is not a directory");
 		}
 
-		$resourcePacksYml = Path::join($this->path, "packs.yml");
+		$resourcePacksYml = Path::join($this->path, "resource_packs.yml");
 		if(!file_exists($resourcePacksYml)){
-			copy(Path::join(\pocketmine\RESOURCE_PATH, "packs.yml"), $resourcePacksYml);
+			copy(Path::join(\pocketmine\RESOURCE_PATH, "resource_packs.yml"), $resourcePacksYml);
 		}
 
 		$resourcePacksConfig = new Config($resourcePacksYml, Config::YAML, []);

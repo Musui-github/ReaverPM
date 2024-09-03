@@ -688,6 +688,7 @@ class NetworkSession{
 			}
 
 			$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_network_session_close($reason)));
+			MultiThreading::getInstance()->exit($this->threadId);
 		}
 	}
 

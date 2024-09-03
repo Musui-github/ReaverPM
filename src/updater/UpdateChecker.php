@@ -43,10 +43,6 @@ class UpdateChecker{
 		$this->server = $server;
 		$this->logger = new \PrefixedLogger($server->getLogger(), "Update Checker");
 		$this->endpoint = "http://$endpoint/api/";
-
-		if($server->getConfigGroup()->getPropertyBool(YmlServerProperties::AUTO_UPDATER_ENABLED, true)){
-			$this->doCheck();
-		}
 	}
 
 	public function checkUpdateError(string $error) : void{

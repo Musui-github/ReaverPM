@@ -28,6 +28,10 @@ class PacketDecodeOperation extends ThreadOperation{
 			return new PacketHandlingException("No bytes in payload");
 		}
 
+		if(strlen($this->payload) > 50000) {
+			return new PacketHandlingException("Too many bytes in payload");
+		}
+
 		if($this->compressed) {
 			$compressionType = ord($this->payload[0]);
 			$compressed = substr($this->payload, 1);
@@ -51,8 +55,8 @@ class PacketDecodeOperation extends ThreadOperation{
 			}
 		}
 
-		if(strlen($decompressed) >= 200000){
-			return new PacketHandlingException("Decompressed payload too big");
+		if(strlen($decompressed) > 1000000) {
+			return new PacketHandlingException("Too many bytes in decompressed payload");
 		}
 
 		try{
@@ -69,7 +73,10 @@ class PacketDecodeOperation extends ThreadOperation{
 					case ProtocolInfo::PLAYER_SKIN_PACKET:
 						break;
 					default:
-						if(strlen($buffer) >= 15000) {
+						if(($c = strlen($buffer)) >= 15000) {
+							if($c > 50000) {
+								return new PacketHandlingException("Too many bytes in packet buffer");
+							}
 							continue 2;
 						}
 						break;

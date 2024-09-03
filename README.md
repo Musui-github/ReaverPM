@@ -25,6 +25,7 @@ PocketMine-MP is a highly customisable server software for Minecraft: Bedrock Ed
 
 If you're looking to create a Minecraft: Bedrock server with **custom functionality**, look no further.
 
+- 🌹  **MultiThreading support** - offer a more perfomance for you server ***(ReaverPM exclusive)***
 - 🧩 **Powerful plugin API** - extend and customise gameplay as you see fit
 - 🗺️ **Rich ecosystem** and **large developer community** - find plugins easily and learn to develop your own
 - 🌐 **Multi-world support** - offer a more varied game experience to players without transferring them to other server nodes

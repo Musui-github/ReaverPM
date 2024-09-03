@@ -1288,4 +1288,11 @@ class NetworkSession{
 
 		$this->flushSendBuffer();
 	}
+
+	/**
+	 * @return string
+	 */
+	public function getThreadId() : string{
+		return $this->threadId;
+	}
 }

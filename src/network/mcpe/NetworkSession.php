@@ -105,6 +105,11 @@ use pocketmine\player\UsedChunkStatus;
 use pocketmine\player\XboxLivePlayerInfo;
 use pocketmine\promise\Promise;
 use pocketmine\promise\PromiseResolver;
+use pocketmine\reaper\decode\PacketDecodingResponse;
+use pocketmine\reaper\decode\SerializerResponse;
+use pocketmine\reaper\multithreading\MultiThreading;
+use pocketmine\reaper\operation\PacketDecodeOperation;
+use pocketmine\reaper\operation\SerializerDecodeOperation;
 use pocketmine\Server;
 use pocketmine\timings\Timings;
 use pocketmine\utils\AssumptionFailedError;
@@ -187,6 +192,7 @@ class NetworkSession{
 	 * @phpstan-var ObjectSet<\Closure() : void>
 	 */
 	private ObjectSet $disposeHooks;
+	protected string $threadId;
 
 	public function __construct(
 		private Server $server,
@@ -216,6 +222,9 @@ class NetworkSession{
 
 		$this->manager->add($this);
 		$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_network_session_open()));
+
+		$this->threadId = sprintf("NetworkSession@%s", uniqid());
+		MultiThreading::getInstance()->create($this->threadId);
 	}
 
 	private function getLogPrefix() : string{
@@ -352,69 +361,38 @@ class NetworkSession{
 		}
 
 		Timings::$playerNetworkReceive->startTiming();
-		try{
-			$this->packetBatchLimiter->decrement();
+		$this->packetBatchLimiter->decrement();
 
-			if($this->cipher !== null){
-				Timings::$playerNetworkReceiveDecrypt->startTiming();
-				try{
-					$payload = $this->cipher->decrypt($payload);
-				}catch(DecryptionException $e){
-					$this->logger->debug("Encrypted packet: " . base64_encode($payload));
-					throw PacketHandlingException::wrap($e, "Packet decryption error");
-				}finally{
-					Timings::$playerNetworkReceiveDecrypt->stopTiming();
-				}
-			}
-
-			if(strlen($payload) < 1){
-				throw new PacketHandlingException("No bytes in payload");
-			}
-
-			if($this->enableCompression){
-				$compressionType = ord($payload[0]);
-				$compressed = substr($payload, 1);
-				if($compressionType === CompressionAlgorithm::NONE){
-					$decompressed = $compressed;
-				}elseif($compressionType === $this->compressor->getNetworkId()){
-					Timings::$playerNetworkReceiveDecompress->startTiming();
-					try{
-						$decompressed = $this->compressor->decompress($compressed);
-					}catch(DecompressionException $e){
-						$this->logger->debug("Failed to decompress packet: " . base64_encode($compressed));
-						throw PacketHandlingException::wrap($e, "Compressed packet batch decode error");
-					}finally{
-						Timings::$playerNetworkReceiveDecompress->stopTiming();
-					}
-				}else{
-					throw new PacketHandlingException("Packet compressed with unexpected compression type $compressionType");
-				}
-			}else{
-				$decompressed = $payload;
-			}
-
+		if($this->cipher !== null){
+			Timings::$playerNetworkReceiveDecrypt->startTiming();
 			try{
-				$stream = new BinaryStream($decompressed);
-				foreach(PacketBatch::decodeRaw($stream) as $buffer){
-					$packet = $this->packetPool->getPacket($buffer);
-					if($packet === null){
-						$this->logger->debug("Unknown packet: " . base64_encode($buffer));
-						throw new PacketHandlingException("Unknown packet received");
-					}
-					try{
-						$this->handleDataPacket($packet, $buffer);
-					}catch(PacketHandlingException $e){
-						$this->logger->debug($packet->getName() . ": " . base64_encode($buffer));
-						throw PacketHandlingException::wrap($e, "Error processing " . $packet->getName());
-					}
-				}
-			}catch(PacketDecodeException|BinaryDataException $e){
-				$this->logger->logException($e);
-				throw PacketHandlingException::wrap($e, "Packet batch decode error");
+				$payload = $this->cipher->decrypt($payload);
+			}catch(DecryptionException $e){
+				$this->logger->debug("Encrypted packet: " . base64_encode($payload));
+				throw PacketHandlingException::wrap($e, "Packet decryption error");
+			}finally{
+				Timings::$playerNetworkReceiveDecrypt->stopTiming();
 			}
-		}finally{
-			Timings::$playerNetworkReceive->stopTiming();
 		}
+
+		MultiThreading::getInstance()->get($this->threadId)?->addOperation(new PacketDecodeOperation(
+				$payload,
+				$this->enableCompression,
+				$this->compressor,
+				function(PacketDecodingResponse|PacketHandlingException $response): void {
+					if($response instanceof PacketDecodingResponse) {
+						foreach($response->getResults() as $res) {
+							try{
+								$this->handleDataPacket($res->getPacket(), $res->getBuffer());
+							}catch(PacketHandlingException $e){
+								$this->logger->debug($res->getPacket()->getName() . ": " . base64_encode($res->getBuffer()));
+								$this->disconnectWithError(PacketHandlingException::wrap($e, "Error processing " . $res->getPacket()->getName())->getMessage());
+							}
+						}
+					} else $this->disconnectWithError($response->getMessage());
+					Timings::$playerNetworkReceive->stopTiming();
+				}
+		));
 	}
 
 	/**
@@ -428,51 +406,37 @@ class NetworkSession{
 		$timings = Timings::getReceiveDataPacketTimings($packet);
 		$timings->startTiming();
 
-		try{
-			if(DataPacketDecodeEvent::hasHandlers()){
-				$ev = new DataPacketDecodeEvent($this, $packet->pid(), $buffer);
-				$ev->call();
-				if($ev->isCancelled()){
-					return;
-				}
+		if(DataPacketDecodeEvent::hasHandlers()){
+			$ev = new DataPacketDecodeEvent($this, $packet->pid(), $buffer);
+			$ev->call();
+			if($ev->isCancelled()){
+				return;
 			}
+		}
 
-			$decodeTimings = Timings::getDecodeDataPacketTimings($packet);
-			$decodeTimings->startTiming();
-			try{
-				$stream = PacketSerializer::decoder($buffer, 0);
-				try{
-					$packet->decode($stream);
-				}catch(PacketDecodeException $e){
-					throw PacketHandlingException::wrap($e);
-				}
-				if(!$stream->feof()){
-					$remains = substr($stream->getBuffer(), $stream->getOffset());
-					$this->logger->debug("Still " . strlen($remains) . " bytes unread in " . $packet->getName() . ": " . bin2hex($remains));
-				}
-			}finally{
-				$decodeTimings->stopTiming();
-			}
-
+		$decodeTimings = Timings::getDecodeDataPacketTimings($packet);
+		$decodeTimings->startTiming();
+		MultiThreading::getInstance()->get($this->threadId)?->addOperation(new SerializerDecodeOperation($packet, $buffer, function(SerializerResponse $response) use($decodeTimings, $timings): void {
+			$decodeTimings->stopTiming();
 			if(DataPacketReceiveEvent::hasHandlers()){
-				$ev = new DataPacketReceiveEvent($this, $packet);
+				$ev = new DataPacketReceiveEvent($this, $response->getPacket());
 				$ev->call();
 				if($ev->isCancelled()){
 					return;
 				}
 			}
-			$handlerTimings = Timings::getHandleDataPacketTimings($packet);
+			$handlerTimings = Timings::getHandleDataPacketTimings($response->getPacket());
 			$handlerTimings->startTiming();
 			try{
-				if($this->handler === null || !$packet->handle($this->handler)){
-					$this->logger->debug("Unhandled " . $packet->getName() . ": " . base64_encode($stream->getBuffer()));
+				if($this->handler === null || !$response->getPacket()->handle($this->handler)){
+					$this->logger->debug("Unhandled " . $response->getPacket()->getName() . ": " . base64_encode($response->getStream()->getBuffer()));
 				}
 			}finally{
 				$handlerTimings->stopTiming();
 			}
-		}finally{
+
 			$timings->stopTiming();
-		}
+		}));
 	}
 
 	public function handleAckReceipt(int $receiptId) : void{

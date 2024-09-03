@@ -27,8 +27,7 @@ class PacketDecodeOperation extends ThreadOperation{
 		if(strlen($this->payload) < 1){
 			return new PacketHandlingException("No bytes in payload");
 		}
-
-		if(strlen($this->payload) > 50000) {
+		if(strlen($this->payload) > 15000) {
 			return new PacketHandlingException("Too many bytes in payload");
 		}
 

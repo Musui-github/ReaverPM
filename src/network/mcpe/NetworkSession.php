@@ -385,7 +385,7 @@ class NetworkSession{
 								$this->disconnectWithError(PacketHandlingException::wrap($e, "Error processing " . $res->getPacket()->getName())->getMessage());
 							}
 						}
-					} else $this->disconnectWithError($response->getMessage());
+					} else $this->disconnect(TextFormat::RED . $response->getMessage());
 				}
 		));
 	}

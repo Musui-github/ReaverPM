@@ -25,22 +25,7 @@ class MultiThreading{
 	 * @return void
 	 */
 	public function create(string $threadId) : void{
-		$out = new ThreadSafeArray();
-		$in = new ThreadSafeArray();
-
-		$sleeperEntry = Server::getInstance()->getTickSleeper()->addNotifier(function () use($threadId) {
-			if(!isset($this->threads[$threadId])) return;
-			$thread = $this->threads[$threadId];
-			while(($raw = $thread->getIn()->shift())){
-				$response = igbinary_unserialize($raw);
-				$identifier = $response[0];
-				$data = $response[1];
-
-				ClosureStorage::executeClosure($identifier, $data);
-			}
-		});
-
-		$thread = new RThread($threadId, $sleeperEntry, $in, $out);
+		$thread = new RThread($threadId);
 		$thread->start();
 		$this->threads[$thread->getThreadId()] = $thread;
 	}
@@ -55,6 +40,16 @@ class MultiThreading{
 		$thread = $this->threads[$threadId];
 		$sleeperId = $thread->getSleeperEntry()->getNotifierId();
 		Server::getInstance()->getTickSleeper()->removeNotifier($sleeperId);
+		$thread->stop();
+	}
+
+	/**
+	 * @param string $threadId
+	 *
+	 * @return bool
+	 */
+	public function exist(string $threadId) : bool{
+		return isset($this->threads[$threadId]);
 	}
 
 	/**

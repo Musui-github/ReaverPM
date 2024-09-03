@@ -3,7 +3,10 @@
 namespace pocketmine\reaper\multithreading\threads;
 
 use pmmp\thread\ThreadSafeArray;
+use pocketmine\reaper\multithreading\MultiThreading;
 use pocketmine\reaper\multithreading\operation\ThreadOperation;
+use pocketmine\reaper\multithreading\storage\ClosureStorage;
+use pocketmine\Server;
 use pocketmine\snooze\SleeperHandlerEntry;
 
 class RThread{
@@ -45,6 +48,19 @@ class RThread{
 	}
 
 	public function start() : void{
+		$this->in = new ThreadSafeArray();
+		$this->out = new ThreadSafeArray();
+
+		$this->sleeperEntry = Server::getInstance()->getTickSleeper()->addNotifier(function (): void {
+			while(($raw = $this->getIn()->shift())){
+				$response = igbinary_unserialize($raw);
+				$identifier = $response[0];
+				$data = $response[1];
+
+				ClosureStorage::executeClosure($identifier, $data);
+			}
+		});
+
 		$this->thread = new ReaperThread($this->sleeperEntry, $this->in, $this->out);
 		$this->thread->start();
 	}

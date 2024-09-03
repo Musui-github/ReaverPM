@@ -375,7 +375,7 @@ class NetworkSession{
 			}
 		}
 
-		MultiThreading::getInstance()->get($this->threadId)?->addOperation(new PacketDecodeOperation(
+		MultiThreading::getInstance()->get($this->threadId)->addOperation(new PacketDecodeOperation(
 				$payload,
 				$this->enableCompression,
 				$this->compressor,
@@ -416,7 +416,7 @@ class NetworkSession{
 
 		$decodeTimings = Timings::getDecodeDataPacketTimings($packet);
 		$decodeTimings->startTiming();
-		MultiThreading::getInstance()->get($this->threadId)?->addOperation(new SerializerDecodeOperation($packet, $buffer, function(SerializerResponse $response) use($decodeTimings, $timings): void {
+		MultiThreading::getInstance()->get($this->threadId)->addOperation(new SerializerDecodeOperation($packet, $buffer, function(SerializerResponse $response) use($decodeTimings, $timings): void {
 			$decodeTimings->stopTiming();
 			if(DataPacketReceiveEvent::hasHandlers()){
 				$ev = new DataPacketReceiveEvent($this, $response->getPacket());

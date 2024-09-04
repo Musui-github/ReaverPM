@@ -3,10 +3,8 @@
 namespace pocketmine\reaper\multithreading;
 
 use pmmp\thread\ThreadSafeArray;
-use pocketmine\reaper\multithreading\storage\ClosureStorage;
 use pocketmine\reaper\multithreading\threads\RThread;
 use pocketmine\Server;
-use pocketmine\snooze\SleeperHandlerEntry;
 use pocketmine\utils\SingletonTrait;
 
 class MultiThreading{

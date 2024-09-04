@@ -2,20 +2,12 @@
 
 namespace pocketmine\reaper\operation;
 
-use pocketmine\network\mcpe\compression\Compressor;
-use pocketmine\network\mcpe\compression\DecompressionException;
 use pocketmine\network\mcpe\protocol\PacketDecodeException;
-use pocketmine\network\mcpe\protocol\PacketPool;
-use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\ServerboundPacket;
-use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\network\PacketHandlingException;
-use pocketmine\reaper\decode\PacketDecodingResponse;
-use pocketmine\reaper\decode\SerializerResponse;
 use pocketmine\reaper\multithreading\operation\ThreadOperation;
-use pocketmine\utils\BinaryDataException;
-use pocketmine\utils\BinaryStream;
+use pocketmine\reaper\response\decode\SerializerDecodeResponse;
 
 class SerializerDecodeOperation extends ThreadOperation{
 	public function __construct(
@@ -24,7 +16,7 @@ class SerializerDecodeOperation extends ThreadOperation{
 		\Closure $closure
 	){ parent::__construct($closure); }
 
-	public function run() : SerializerResponse{
+	public function run() : SerializerDecodeResponse{
 		$stream = PacketSerializer::decoder($this->buffer, 0);
 		try{
 			$this->packet->decode($stream);
@@ -34,6 +26,6 @@ class SerializerDecodeOperation extends ThreadOperation{
 		if(!$stream->feof()){
 			$remains = substr($stream->getBuffer(), $stream->getOffset());
 		}
-		return new SerializerResponse($this->packet, $stream);
+		return new SerializerDecodeResponse($this->packet, $stream);
 	}
 }

@@ -1,18 +1,17 @@
 <?php
 
-namespace pocketmine\reaper\decode;
+namespace pocketmine\reaper\response\decode;
 
 use pocketmine\network\mcpe\protocol\Packet;
-use pocketmine\network\mcpe\protocol\ServerboundPacket;
 
 class PacketDecodingResponse{
 	/**
-	 * @var PacketResponse[]
+	 * @var PacketDecodeResponse[]
 	 */
 	protected array $results = [];
 
 	public function add(Packet $packet, string $buffer) : void{
-		$this->results[] = new PacketResponse($packet, $buffer);
+		$this->results[] = new PacketDecodeResponse($packet, $buffer);
 	}
 
 	/**

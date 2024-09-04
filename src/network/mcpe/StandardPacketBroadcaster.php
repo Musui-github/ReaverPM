@@ -26,6 +26,10 @@ namespace pocketmine\network\mcpe;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
+use pocketmine\reaper\multithreading\MultiThreading;
+use pocketmine\reaper\operation\PacketEncodeOperation;
+use pocketmine\reaper\operation\SerializerEncodeOperation;
+use pocketmine\reaper\response\encode\SerializerResponse;
 use pocketmine\Server;
 use pocketmine\timings\Timings;
 use pocketmine\utils\BinaryStream;
@@ -51,6 +55,10 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 			$packets = $ev->getPackets();
 		}
 
+
+		$threadId = "Encoding@" . uniqid();
+		MultiThreading::getInstance()->create($threadId);
+
 		$compressors = [];
 
 		/** @var NetworkSession[][] $targetsByCompressor */
@@ -63,36 +71,40 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 			$targetsByCompressor[spl_object_id($compressor)][] = $recipient;
 		}
 
-		$totalLength = 0;
-		$packetBuffers = [];
-		foreach($packets as $packet){
-			$buffer = NetworkSession::encodePacketTimed(PacketSerializer::encoder(), $packet);
-			//varint length prefix + packet buffer
-			$totalLength += (((int) log(strlen($buffer), 128)) + 1) + strlen($buffer);
-			$packetBuffers[] = $buffer;
-		}
+		MultiThreading::getInstance()->get($threadId)->addOperation(new SerializerEncodeOperation($packets, function(array $buffer) use($targetsByCompressor, $compressors): void {
+			$totalLength = 0;
+			$packetBuffers = [];
 
-		foreach($targetsByCompressor as $compressorId => $compressorTargets){
-			$compressor = $compressors[$compressorId];
+			/** @var SerializerResponse $response */
+			foreach($buffer as $response) {
+				$buffer = $response->getSerializer()->getBuffer();
+				//varint length prefix + packet buffer
+				$totalLength += (((int) log(strlen($buffer), 128)) + 1) + strlen($buffer);
+				$packetBuffers[] = $buffer;
+			}
 
-			$threshold = $compressor->getCompressionThreshold();
-			if(count($compressorTargets) > 1 && $threshold !== null && $totalLength >= $threshold){
-				//do not prepare shared batch unless we're sure it will be compressed
-				$stream = new BinaryStream();
-				PacketBatch::encodeRaw($stream, $packetBuffers);
-				$batchBuffer = $stream->getBuffer();
+			foreach($targetsByCompressor as $compressorId => $compressorTargets){
+				$compressor = $compressors[$compressorId];
 
-				$batch = $this->server->prepareBatch($batchBuffer, $compressor, timings: Timings::$playerNetworkSendCompressBroadcast);
-				foreach($compressorTargets as $target){
-					$target->queueCompressed($batch);
-				}
-			}else{
-				foreach($compressorTargets as $target){
-					foreach($packetBuffers as $packetBuffer){
-						$target->addToSendBuffer($packetBuffer);
+				$threshold = $compressor->getCompressionThreshold();
+				if(count($compressorTargets) > 1 && $threshold !== null && $totalLength >= $threshold){
+					//do not prepare shared batch unless we're sure it will be compressed
+					$stream = new BinaryStream();
+					PacketBatch::encodeRaw($stream, $packetBuffers);
+					$batchBuffer = $stream->getBuffer();
+
+					$batch = $this->server->prepareBatch($batchBuffer, $compressor, timings: Timings::$playerNetworkSendCompressBroadcast);
+					foreach($compressorTargets as $target){
+						$target->queueCompressed($batch);
+					}
+				}else{
+					foreach($compressorTargets as $target){
+						foreach($packetBuffers as $packetBuffer){
+							$target->addToSendBuffer($packetBuffer);
+						}
 					}
 				}
 			}
-		}
+		}));
 	}
 }

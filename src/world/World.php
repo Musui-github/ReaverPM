@@ -2915,7 +2915,7 @@ class World implements ChunkManager{
 					continue;
 				}
 				if($tile === null){
-					$logger->warning("Deleted unknown tile entity type " . $nbt->getString("id", "<unknown>"));
+					$logger->debug("Deleted unknown tile entity type " . $nbt->getString("id", "<unknown>"));
 					continue;
 				}
 

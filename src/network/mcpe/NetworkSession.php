@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe;
 
+use pocketmine\command\defaults\VanillaCommand;
 use pocketmine\entity\effect\EffectInstance;
 use pocketmine\event\player\PlayerDuplicateLoginEvent;
 use pocketmine\event\player\PlayerResourcePackOfferEvent;
@@ -38,6 +39,7 @@ use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\mcpe\cache\ChunkCache;
 use pocketmine\network\mcpe\compression\CompressBatchPromise;
 use pocketmine\network\mcpe\compression\Compressor;
+use pocketmine\network\mcpe\compression\DecompressionException;
 use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\encryption\DecryptionException;
 use pocketmine\network\mcpe\encryption\EncryptionContext;
@@ -61,6 +63,7 @@ use pocketmine\network\mcpe\protocol\MovePlayerPacket;
 use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
 use pocketmine\network\mcpe\protocol\OpenSignPacket;
 use pocketmine\network\mcpe\protocol\Packet;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
@@ -82,7 +85,10 @@ use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\command\CommandData;
 use pocketmine\network\mcpe\protocol\types\command\CommandEnum;
+use pocketmine\network\mcpe\protocol\types\command\CommandOverload;
+use pocketmine\network\mcpe\protocol\types\command\CommandParameter;
 use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
+use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
@@ -99,17 +105,15 @@ use pocketmine\player\UsedChunkStatus;
 use pocketmine\player\XboxLivePlayerInfo;
 use pocketmine\promise\Promise;
 use pocketmine\promise\PromiseResolver;
+use pocketmine\reaper\decode\PacketDecodingResponse;
+use pocketmine\reaper\decode\SerializerResponse;
 use pocketmine\reaper\multithreading\MultiThreading;
 use pocketmine\reaper\operation\PacketDecodeOperation;
-use pocketmine\reaper\operation\PacketEncodeOperation;
 use pocketmine\reaper\operation\SerializerDecodeOperation;
-use pocketmine\reaper\operation\SerializerEncodeOperation;
-use pocketmine\reaper\response\decode\PacketDecodingResponse;
-use pocketmine\reaper\response\decode\SerializerDecodeResponse;
-use pocketmine\reaper\response\encode\SerializerResponse;
 use pocketmine\Server;
 use pocketmine\timings\Timings;
 use pocketmine\utils\AssumptionFailedError;
+use pocketmine\utils\BinaryDataException;
 use pocketmine\utils\BinaryStream;
 use pocketmine\utils\ObjectSet;
 use pocketmine\utils\TextFormat;
@@ -125,10 +129,13 @@ use function implode;
 use function in_array;
 use function is_string;
 use function json_encode;
+use function ord;
 use function random_bytes;
 use function str_split;
 use function strcasecmp;
+use function strlen;
 use function strtolower;
+use function substr;
 use function time;
 use function ucfirst;
 use const JSON_THROW_ON_ERROR;
@@ -398,7 +405,7 @@ class NetworkSession{
 				return;
 			}
 		}
-		MultiThreading::getInstance()->get($this->threadId)->addOperation(new SerializerDecodeOperation($packet, $buffer, function(SerializerDecodeResponse $response): void {
+		MultiThreading::getInstance()->get($this->threadId)->addOperation(new SerializerDecodeOperation($packet, $buffer, function(SerializerResponse $response): void {
 			if(DataPacketReceiveEvent::hasHandlers()){
 				$ev = new DataPacketReceiveEvent($this, $response->getPacket());
 				$ev->call();
@@ -451,20 +458,15 @@ class NetworkSession{
 				$packets = [$packet];
 			}
 
-			MultiThreading::getInstance()->get($this->threadId)->addOperation(new SerializerEncodeOperation($packets, function(array $buffers) use($immediate, $ackReceiptResolver): void {
-				if($ackReceiptResolver !== null){
-					$this->sendBufferAckPromises[] = $ackReceiptResolver;
-				}
-
-				/** @var SerializerResponse $response */
-				foreach($buffers as $response) {
-					$this->addToSendBuffer($response->getSerializer()->getBuffer());
-				}
-
-				if($immediate){
-					$this->flushSendBuffer(true);
-				}
-			}));
+			if($ackReceiptResolver !== null){
+				$this->sendBufferAckPromises[] = $ackReceiptResolver;
+			}
+			foreach($packets as $evPacket){
+				$this->addToSendBuffer(self::encodePacketTimed(PacketSerializer::encoder(), $evPacket));
+			}
+			if($immediate){
+				$this->flushSendBuffer(true);
+			}
 
 			return true;
 		}finally{
@@ -521,17 +523,18 @@ class NetworkSession{
 					$syncMode = false;
 				}
 
-				$ackPromises = $this->sendBufferAckPromises;
-				MultiThreading::getInstance()->get($this->threadId)->addOperation(new PacketEncodeOperation($this->sendBuffer, function(BinaryStream $stream) use($syncMode, $immediate, $ackPromises) {
-					if($this->enableCompression){
-						$batch = $this->server->prepareBatch($stream->getBuffer(), $this->compressor, $syncMode, Timings::$playerNetworkSendCompressSessionBuffer);
-					}else{
-						$batch = $stream->getBuffer();
-					}
-					$this->queueCompressedNoBufferFlush($batch, $immediate, $ackPromises);
-				}));
+				$stream = new BinaryStream();
+				PacketBatch::encodeRaw($stream, $this->sendBuffer);
+
+				if($this->enableCompression){
+					$batch = $this->server->prepareBatch($stream->getBuffer(), $this->compressor, $syncMode, Timings::$playerNetworkSendCompressSessionBuffer);
+				}else{
+					$batch = $stream->getBuffer();
+				}
 				$this->sendBuffer = [];
+				$ackPromises = $this->sendBufferAckPromises;
 				$this->sendBufferAckPromises = [];
+				$this->queueCompressedNoBufferFlush($batch, $immediate, $ackPromises);
 			}finally{
 				Timings::$playerNetworkSend->stopTiming();
 			}

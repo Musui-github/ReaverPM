@@ -1,11 +1,11 @@
 <?php
 
-namespace pocketmine\reaper\response\decode;
+namespace pocketmine\reaper\decode;
 
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\ServerboundPacket;
 
-class SerializerDecodeResponse{
+class SerializerResponse{
 	public function __construct(
 		protected ServerboundPacket $packet,
 		protected PacketSerializer $stream

@@ -3,9 +3,11 @@
 namespace pocketmine\reaper\multithreading\threads;
 
 use pmmp\thread\ThreadSafeArray;
+use pocketmine\reaper\multithreading\MultiThreading;
 use pocketmine\reaper\multithreading\operation\ThreadOperation;
 use pocketmine\reaper\multithreading\storage\ClosureStorage;
 use pocketmine\Server;
+use pocketmine\snooze\SleeperHandlerEntry;
 
 class RThread{
 	protected ReaperThread $thread;

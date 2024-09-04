@@ -1,10 +1,11 @@
 <?php
 
-namespace pocketmine\reaper\response\decode;
+namespace pocketmine\reaper\decode;
 
 use pocketmine\network\mcpe\protocol\Packet;
+use pocketmine\network\mcpe\protocol\ServerboundPacket;
 
-class PacketDecodeResponse{
+class PacketResponse{
 	public function __construct(
 		protected Packet $packet,
 		protected string $buffer

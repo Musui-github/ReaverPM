@@ -294,6 +294,8 @@ class Server{
 
 	/** @var Player[] */
 	private array $playerList = [];
+	/** @var string[] */
+	private array $uuidList = [];
 
 	private SignalHandler $signalHandler;
 
@@ -614,10 +616,13 @@ class Server{
 	 * @see Server::getPlayerExact()
 	 */
 	public function getPlayerByPrefix(string $name) : ?Player{
+		$list = array_filter($this->getOnlinePlayers(), fn(Player $player) => str_starts_with(strtolower($player->getName()), strtolower($name)));
+
 		$found = null;
 		$name = strtolower($name);
 		$delta = PHP_INT_MAX;
-		foreach($this->getOnlinePlayers() as $player){
+
+		foreach($list as $player){
 			if(stripos($player->getName(), $name) === 0){
 				$curDelta = strlen($player->getName()) - strlen($name);
 				if($curDelta < $delta){
@@ -637,14 +642,7 @@ class Server{
 	 * Returns an online player with the given name (case insensitive), or null if not found.
 	 */
 	public function getPlayerExact(string $name) : ?Player{
-		$name = strtolower($name);
-		foreach($this->getOnlinePlayers() as $player){
-			if(strtolower($player->getName()) === $name){
-				return $player;
-			}
-		}
-
-		return null;
+		return $this->getPlayerByRawUUID($this->uuidList[strtolower($name)] ?? "");
 	}
 
 	/**
@@ -1690,6 +1688,7 @@ class Server{
 		}
 		$rawUUID = $player->getUniqueId()->getBytes();
 		$this->playerList[$rawUUID] = $player;
+		$this->uuidList[strtolower($player->getName())] = $rawUUID;
 
 		if($this->sendUsageTicker > 0){
 			$this->uniquePlayers[$rawUUID] = $rawUUID;
@@ -1701,6 +1700,7 @@ class Server{
 	public function removeOnlinePlayer(Player $player) : void{
 		if(isset($this->playerList[$rawUUID = $player->getUniqueId()->getBytes()])){
 			unset($this->playerList[$rawUUID]);
+			unset($this->uuidList[strtolower($player->getName())]);
 			foreach($this->playerList as $p){
 				$p->getNetworkSession()->onPlayerRemoved($player);
 			}

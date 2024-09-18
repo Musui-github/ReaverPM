@@ -2522,6 +2522,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 	}
 
 	public function teleport(Vector3 $pos, ?float $yaw = null, ?float $pitch = null) : bool{
+		$pos->y += 9.894371033e-6;
+
 		if(parent::teleport($pos, $yaw, $pitch)){
 
 			$this->removeCurrentWindow();

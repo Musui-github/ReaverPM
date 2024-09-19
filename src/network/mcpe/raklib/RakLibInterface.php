@@ -86,6 +86,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 	private PacketBroadcaster $packetBroadcaster;
 	private EntityEventBroadcaster $entityEventBroadcaster;
 	private TypeConverter $typeConverter;
+	protected bool $multiThreading;
 
 	public function __construct(
 		Server $server,
@@ -134,6 +135,8 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 		$this->interface = new UserToRakLibThreadMessageSender(
 			new PthreadsChannelWriter($mainToThreadBuffer)
 		);
+
+		$this->multiThreading = Server::getInstance()->getConfigGroup()->getConfigBool(YmlServerProperties::REAPER_MULTI_THREADING);
 	}
 
 	public function start() : void{
@@ -213,7 +216,9 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 			$buf = substr($packet, 1);
 			$name = $session->getDisplayName();
 			try{
-				$session->handleEncoded($buf);
+				if($this->multiThreading)
+					$session->handleEncodedMultiThreading($buf);
+				else $session->handleEncoded($buf);
 			}catch(PacketHandlingException $e){
 				$logger = $session->getLogger();
 

@@ -115,4 +115,5 @@ final class YmlServerProperties{
 	public const TIMINGS = 'timings';
 	public const TIMINGS_HOST = 'timings.host';
 	public const WORLDS = 'worlds';
+	public const REAPER_MULTI_THREADING = 'reaper.multi_threading';
 }

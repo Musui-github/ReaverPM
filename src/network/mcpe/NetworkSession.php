@@ -355,7 +355,7 @@ class NetworkSession{
 	/**
 	 * @throws PacketHandlingException
 	 */
-	public function handleEncoded(string $payload) : void{
+	public function handleEncodedMultiThreading(string $payload) : void{
 		if(!$this->connected){
 			return;
 		}
@@ -379,7 +379,7 @@ class NetworkSession{
 					if($response instanceof PacketDecodingResponse) {
 						foreach($response->getResults() as $res) {
 							try{
-								$this->handleDataPacket($res->getPacket(), $res->getBuffer());
+								$this->handleDataPacketMultiThreading($res->getPacket(), $res->getBuffer());
 							}catch(PacketHandlingException $e){
 								$this->logger->debug($res->getPacket()->getName() . ": " . base64_encode($res->getBuffer()));
 								$this->disconnectWithError(PacketHandlingException::wrap($e, "Error processing " . $res->getPacket()->getName())->getMessage());
@@ -393,7 +393,7 @@ class NetworkSession{
 	/**
 	 * @throws PacketHandlingException
 	 */
-	public function handleDataPacket(Packet $packet, string $buffer) : void{
+	public function handleDataPacketMultiThreading(Packet $packet, string $buffer) : void{
 		if(!($packet instanceof ServerboundPacket)){
 			throw new PacketHandlingException("Unexpected non-serverbound packet");
 		}
@@ -413,10 +413,147 @@ class NetworkSession{
 					return;
 				}
 			}
-			if($this->handler === null || !$response->getPacket()->handle($this->handler)){
-				$this->logger->debug("Unhandled " . $response->getPacket()->getName() . ": " . base64_encode($response->getStream()->getBuffer()));
+			try {
+				if($this->handler === null || !$response->getPacket()->handle($this->handler)){
+					$this->logger->debug("Unhandled " . $response->getPacket()->getName() . ": " . base64_encode($response->getStream()->getBuffer()));
+				}
+			} catch(\Exception $exception) {
+				$this->disconnect($exception->getMessage());
 			}
 		}));
+	}
+
+	/**
+	 * @throws PacketHandlingException
+	 */
+	public function handleEncoded(string $payload) : void{
+		if(!$this->connected){
+			return;
+		}
+
+		Timings::$playerNetworkReceive->startTiming();
+		try{
+			$this->packetBatchLimiter->decrement();
+
+			if($this->cipher !== null){
+				Timings::$playerNetworkReceiveDecrypt->startTiming();
+				try{
+					$payload = $this->cipher->decrypt($payload);
+				}catch(DecryptionException $e){
+					$this->logger->debug("Encrypted packet: " . base64_encode($payload));
+					throw PacketHandlingException::wrap($e, "Packet decryption error");
+				}finally{
+					Timings::$playerNetworkReceiveDecrypt->stopTiming();
+				}
+			}
+
+			if(strlen($payload) < 1){
+				throw new PacketHandlingException("No bytes in payload");
+			}
+
+			if($this->enableCompression){
+				$compressionType = ord($payload[0]);
+				$compressed = substr($payload, 1);
+				if($compressionType === CompressionAlgorithm::NONE){
+					$decompressed = $compressed;
+				}elseif($compressionType === $this->compressor->getNetworkId()){
+					Timings::$playerNetworkReceiveDecompress->startTiming();
+					try{
+						$decompressed = $this->compressor->decompress($compressed);
+					}catch(DecompressionException $e){
+						$this->logger->debug("Failed to decompress packet: " . base64_encode($compressed));
+						throw PacketHandlingException::wrap($e, "Compressed packet batch decode error");
+					}finally{
+						Timings::$playerNetworkReceiveDecompress->stopTiming();
+					}
+				}else{
+					throw new PacketHandlingException("Packet compressed with unexpected compression type $compressionType");
+				}
+			}else{
+				$decompressed = $payload;
+			}
+
+			try{
+				$stream = new BinaryStream($decompressed);
+				foreach(PacketBatch::decodeRaw($stream) as $buffer){
+					$this->gamePacketLimiter->decrement();
+					$packet = $this->packetPool->getPacket($buffer);
+					if($packet === null){
+						$this->logger->debug("Unknown packet: " . base64_encode($buffer));
+						throw new PacketHandlingException("Unknown packet received");
+					}
+					try{
+						$this->handleDataPacket($packet, $buffer);
+					}catch(PacketHandlingException $e){
+						$this->logger->debug($packet->getName() . ": " . base64_encode($buffer));
+						throw PacketHandlingException::wrap($e, "Error processing " . $packet->getName());
+					}
+				}
+			}catch(PacketDecodeException|BinaryDataException $e){
+				$this->logger->logException($e);
+				throw PacketHandlingException::wrap($e, "Packet batch decode error");
+			}
+		}finally{
+			Timings::$playerNetworkReceive->stopTiming();
+		}
+	}
+
+	/**
+	 * @throws PacketHandlingException
+	 */
+	public function handleDataPacket(Packet $packet, string $buffer) : void{
+		if(!($packet instanceof ServerboundPacket)){
+			throw new PacketHandlingException("Unexpected non-serverbound packet");
+		}
+
+		$timings = Timings::getReceiveDataPacketTimings($packet);
+		$timings->startTiming();
+
+		try{
+			if(DataPacketDecodeEvent::hasHandlers()){
+				$ev = new DataPacketDecodeEvent($this, $packet->pid(), $buffer);
+				$ev->call();
+				if($ev->isCancelled()){
+					return;
+				}
+			}
+
+			$decodeTimings = Timings::getDecodeDataPacketTimings($packet);
+			$decodeTimings->startTiming();
+			try{
+				$stream = PacketSerializer::decoder($buffer, 0);
+				try{
+					$packet->decode($stream);
+				}catch(PacketDecodeException $e){
+					throw PacketHandlingException::wrap($e);
+				}
+				if(!$stream->feof()){
+					$remains = substr($stream->getBuffer(), $stream->getOffset());
+					$this->logger->debug("Still " . strlen($remains) . " bytes unread in " . $packet->getName() . ": " . bin2hex($remains));
+				}
+			}finally{
+				$decodeTimings->stopTiming();
+			}
+
+			if(DataPacketReceiveEvent::hasHandlers()){
+				$ev = new DataPacketReceiveEvent($this, $packet);
+				$ev->call();
+				if($ev->isCancelled()){
+					return;
+				}
+			}
+			$handlerTimings = Timings::getHandleDataPacketTimings($packet);
+			$handlerTimings->startTiming();
+			try{
+				if($this->handler === null || !$packet->handle($this->handler)){
+					$this->logger->debug("Unhandled " . $packet->getName() . ": " . base64_encode($stream->getBuffer()));
+				}
+			}finally{
+				$handlerTimings->stopTiming();
+			}
+		}finally{
+			$timings->stopTiming();
+		}
 	}
 
 	public function handleAckReceipt(int $receiptId) : void{

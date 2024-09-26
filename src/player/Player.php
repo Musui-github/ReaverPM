@@ -1277,11 +1277,6 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 	}
 
 	private function actuallyHandleMovement(Vector3 $newPos) : void{
-		$this->moveRateLimit--;
-		if($this->moveRateLimit < 0){
-			return;
-		}
-
 		$oldPos = $this->location;
 		$distanceSquared = $newPos->distanceSquared($oldPos);
 
@@ -1324,12 +1319,6 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 	 * Fires movement events and synchronizes player movement, every tick.
 	 */
 	protected function processMostRecentMovements() : void{
-		$now = microtime(true);
-		$multiplier = $this->lastMovementProcess !== null ? ($now - $this->lastMovementProcess) * 20 : 1;
-		$exceededRateLimit = $this->moveRateLimit < 0;
-		$this->moveRateLimit = min(self::MOVE_BACKLOG_SIZE, max(0, $this->moveRateLimit) + self::MOVES_PER_TICK * $multiplier);
-		$this->lastMovementProcess = $now;
-
 		$from = clone $this->lastLocation;
 		$to = clone $this->location;
 
@@ -1354,7 +1343,6 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 			}
 
 			$this->lastLocation = $to;
-			$this->broadcastMovement();
 
 			$horizontalDistanceTravelled = sqrt((($from->x - $to->x) ** 2) + (($from->z - $to->z) ** 2));
 			if($horizontalDistanceTravelled > 0){
@@ -1371,10 +1359,12 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 			}
 		}
 
-		if($exceededRateLimit){ //client and server positions will be out of sync if this happens
+		$this->broadcastMovement();
+
+		/*if($exceededRateLimit){ //client and server positions will be out of sync if this happens
 			$this->logger->debug("Exceeded movement rate limit, forcing to last accepted position");
 			$this->sendPosition($this->location, $this->location->getYaw(), $this->location->getPitch(), MovePlayerPacket::MODE_RESET);
-		}
+		}*/
 	}
 
 	protected function revertMovement(Location $from) : void{

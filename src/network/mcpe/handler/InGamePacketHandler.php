@@ -182,21 +182,19 @@ class InGamePacketHandler extends PacketHandler{
 			}
 		}
 
-		if($rawYaw !== $this->lastPlayerAuthInputYaw || $rawPitch !== $this->lastPlayerAuthInputPitch){
-			$this->lastPlayerAuthInputYaw = $rawYaw;
-			$this->lastPlayerAuthInputPitch = $rawPitch;
+		$this->lastPlayerAuthInputYaw = $rawYaw;
+		$this->lastPlayerAuthInputPitch = $rawPitch;
 
-			$yaw = fmod($rawYaw, 360);
-			$pitch = fmod($rawPitch, 360);
-			if($yaw < 0){
-				$yaw += 360;
-			}
-
-			$this->player->setRotation($yaw, $pitch);
+		$yaw = fmod($rawYaw, 360);
+		$pitch = fmod($rawPitch, 360);
+		if($yaw < 0){
+			$yaw += 360;
 		}
 
+		$this->player->setRotation($yaw, $pitch);
+
 		$hasMoved = $this->lastPlayerAuthInputPosition === null || !$this->lastPlayerAuthInputPosition->equals($rawPos);
-		$newPos = $rawPos->subtract(0, 1.62, 0)->round(4);
+		$newPos = $rawPos->subtract(0, 1.62, 0);
 
 		if($this->forceMoveSync && $hasMoved){
 			$curPos = $this->player->getLocation();
@@ -238,7 +236,7 @@ class InGamePacketHandler extends PacketHandler{
 			}
 		}
 
-		if(!$this->forceMoveSync && $hasMoved){
+		if(!$this->forceMoveSync){
 			$this->lastPlayerAuthInputPosition = $rawPos;
 			//TODO: this packet has WAYYYYY more useful information that we're not using
 			$this->player->handleMovement($newPos);

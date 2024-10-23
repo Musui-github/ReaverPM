@@ -1,9 +1,8 @@
 <?php
 
-namespace pocketmine\reaper\decode;
+namespace pocketmine\reaper\operation;
 
 use pocketmine\network\mcpe\protocol\Packet;
-use pocketmine\network\mcpe\protocol\ServerboundPacket;
 
 class PacketDecodingResponse{
 	/**

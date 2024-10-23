@@ -45,6 +45,7 @@ use pocketmine\block\utils\DripleafState;
 use pocketmine\block\utils\DyeColor;
 use pocketmine\block\utils\FroglightType;
 use pocketmine\block\utils\LeverFacing;
+use pocketmine\block\utils\MobHeadType;
 use pocketmine\block\VanillaBlocks as Blocks;
 use pocketmine\block\Wood;
 use pocketmine\data\bedrock\block\BlockLegacyMetadata;
@@ -85,6 +86,7 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 		$this->registerLeavesDeserializers();
 		$this->registerSaplingDeserializers();
 		$this->registerLightDeserializers();
+		$this->registerMobHeadDeserializers();
 		$this->registerSimpleDeserializers();
 		$this->registerDeserializers();
 	}
@@ -531,10 +533,7 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 		$this->mapSimple(Ids::CHERRY_PLANKS, fn() => Blocks::CHERRY_PLANKS());
 		$this->mapSlab(Ids::CHERRY_SLAB, Ids::CHERRY_DOUBLE_SLAB, fn() => Blocks::CHERRY_SLAB());
 		$this->mapStairs(Ids::CHERRY_STAIRS, fn() => Blocks::CHERRY_STAIRS());
-		$this->map(Ids::CHERRY_WOOD, function(Reader $in){
-			$in->ignored(StateNames::STRIPPED_BIT); //this is also ignored by vanilla
-			return Helper::decodeLog(Blocks::CHERRY_WOOD(), false, $in);
-		});
+		$this->map(Ids::CHERRY_WOOD, fn(Reader $in) => Helper::decodeLog(Blocks::CHERRY_WOOD(), false, $in));
 		$this->map(Ids::STRIPPED_CHERRY_WOOD, fn(Reader $in) => Helper::decodeLog(Blocks::CHERRY_WOOD(), true, $in));
 
 		$this->map(Ids::CRIMSON_BUTTON, fn(Reader $in) => Helper::decodeButton(Blocks::CRIMSON_BUTTON(), $in));
@@ -591,10 +590,7 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 		$this->mapSimple(Ids::MANGROVE_PLANKS, fn() => Blocks::MANGROVE_PLANKS());
 		$this->mapSlab(Ids::MANGROVE_SLAB, Ids::MANGROVE_DOUBLE_SLAB, fn() => Blocks::MANGROVE_SLAB());
 		$this->mapStairs(Ids::MANGROVE_STAIRS, fn() => Blocks::MANGROVE_STAIRS());
-		$this->map(Ids::MANGROVE_WOOD, function(Reader $in){
-			$in->ignored(StateNames::STRIPPED_BIT); //this is also ignored by vanilla
-			return Helper::decodeLog(Blocks::MANGROVE_WOOD(), false, $in);
-		});
+		$this->map(Ids::MANGROVE_WOOD, fn(Reader $in) => Helper::decodeLog(Blocks::MANGROVE_WOOD(), false, $in));
 		$this->map(Ids::STRIPPED_MANGROVE_WOOD, fn(Reader $in) => Helper::decodeLog(Blocks::MANGROVE_WOOD(), true, $in));
 
 		//oak - due to age, many of these don't specify "oak", making for confusing reading
@@ -687,6 +683,20 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 			Ids::LIGHT_BLOCK_15 => 15,
 		] as $id => $level){
 			$this->mapSimple($id, fn() => Blocks::LIGHT()->setLightLevel($level));
+		}
+	}
+
+	private function registerMobHeadDeserializers() : void{
+		foreach([
+			Ids::CREEPER_HEAD => MobHeadType::CREEPER,
+			Ids::DRAGON_HEAD => MobHeadType::DRAGON,
+			Ids::PIGLIN_HEAD => MobHeadType::PIGLIN,
+			Ids::PLAYER_HEAD => MobHeadType::PLAYER,
+			Ids::SKELETON_SKULL => MobHeadType::SKELETON,
+			Ids::WITHER_SKELETON_SKULL => MobHeadType::WITHER_SKELETON,
+			Ids::ZOMBIE_HEAD => MobHeadType::ZOMBIE
+		] as $id => $mobHeadType){
+			$this->map($id, fn(Reader $in) => Blocks::MOB_HEAD()->setMobHeadType($mobHeadType)->setFacing($in->readFacingWithoutDown()));
 		}
 	}
 
@@ -1186,9 +1196,9 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 		$this->mapSlab(Ids::DARK_PRISMARINE_SLAB, Ids::DARK_PRISMARINE_DOUBLE_SLAB, fn() => Blocks::DARK_PRISMARINE_SLAB());
 		$this->mapStairs(Ids::DARK_PRISMARINE_STAIRS, fn() => Blocks::DARK_PRISMARINE_STAIRS());
 		$this->map(Ids::DAYLIGHT_DETECTOR, fn(Reader $in) => Helper::decodeDaylightSensor(Blocks::DAYLIGHT_SENSOR(), $in)
-				->setInverted(false));
+			->setInverted(false));
 		$this->map(Ids::DAYLIGHT_DETECTOR_INVERTED, fn(Reader $in) => Helper::decodeDaylightSensor(Blocks::DAYLIGHT_SENSOR(), $in)
-				->setInverted(true));
+			->setInverted(true));
 		$this->map(Ids::DEEPSLATE, function(Reader $in) : Block{
 			return Blocks::DEEPSLATE()
 				->setAxis($in->readPillarAxis());
@@ -1453,7 +1463,7 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 		$this->map(Ids::POTATOES, fn(Reader $in) => Helper::decodeCrops(Blocks::POTATOES(), $in));
 		$this->map(Ids::POWERED_COMPARATOR, fn(Reader $in) => Helper::decodeComparator(Blocks::REDSTONE_COMPARATOR(), $in));
 		$this->map(Ids::POWERED_REPEATER, fn(Reader $in) => Helper::decodeRepeater(Blocks::REDSTONE_REPEATER(), $in)
-				->setPowered(true));
+			->setPowered(true));
 		$this->mapSlab(Ids::PRISMARINE_BRICK_SLAB, Ids::PRISMARINE_BRICK_DOUBLE_SLAB, fn() => Blocks::PRISMARINE_BRICKS_SLAB());
 		$this->mapStairs(Ids::PRISMARINE_BRICKS_STAIRS, fn() => Blocks::PRISMARINE_BRICKS_STAIRS());
 		$this->map(Ids::PRISMARINE_WALL, fn(Reader $in) => Helper::decodeWall(Blocks::PRISMARINE_WALL(), $in));
@@ -1521,10 +1531,6 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 				->setCount($in->readBoundedInt(StateNames::CLUSTER_COUNT, 0, 3) + 1)
 				->setUnderwater(!$in->readBool(StateNames::DEAD_BIT));
 		});
-		$this->map(Ids::SKULL, function(Reader $in) : Block{
-			return Blocks::MOB_HEAD()
-				->setFacing($in->readFacingWithoutDown());
-		});
 		$this->map(Ids::SMOKER, function(Reader $in) : Block{
 			return Blocks::SMOKER()
 				->setFacing($in->readCardinalHorizontalFacing())
@@ -1589,7 +1595,8 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 		});
 		$this->map(Ids::TNT, function(Reader $in) : Block{
 			return Blocks::TNT()
-				->setUnstable($in->readBool(StateNames::EXPLODE_BIT));
+				->setUnstable($in->readBool(StateNames::EXPLODE_BIT))
+				->setWorksUnderwater(false);
 		});
 		$this->map(Ids::TORCH, function(Reader $in) : Block{
 			return Blocks::TORCH()
@@ -1637,7 +1644,7 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 		});
 		$this->map(Ids::UNPOWERED_COMPARATOR, fn(Reader $in) => Helper::decodeComparator(Blocks::REDSTONE_COMPARATOR(), $in));
 		$this->map(Ids::UNPOWERED_REPEATER, fn(Reader $in) => Helper::decodeRepeater(Blocks::REDSTONE_REPEATER(), $in)
-				->setPowered(false));
+			->setPowered(false));
 		$this->map(Ids::VERDANT_FROGLIGHT, fn(Reader $in) => Blocks::FROGLIGHT()->setFroglightType(FroglightType::VERDANT)->setAxis($in->readPillarAxis()));
 		$this->map(Ids::VINE, function(Reader $in) : Block{
 			$vineDirectionFlags = $in->readBoundedInt(StateNames::VINE_DIRECTION_BITS, 0, 15);

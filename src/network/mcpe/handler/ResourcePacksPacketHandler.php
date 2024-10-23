@@ -118,7 +118,6 @@ class ResourcePacksPacketHandler extends PacketHandler{
 			mustAccept: $this->mustAccept,
 			hasAddons: false,
 			hasScripts: false,
-			cdnUrls: []
 		));
 		$this->session->getLogger()->debug("Waiting for client to accept resource packs");
 	}

@@ -10,7 +10,6 @@ use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\network\PacketHandlingException;
-use pocketmine\reaper\decode\PacketDecodingResponse;
 use pocketmine\reaper\multithreading\operation\ThreadOperation;
 use pocketmine\utils\BinaryDataException;
 use pocketmine\utils\BinaryStream;

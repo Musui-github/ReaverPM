@@ -464,14 +464,6 @@ final class ItemSerializerDeserializerRegistrar{
 			},
 			fn(Bed $block) => DyeColorIdMap::getInstance()->toId($block->getColor())
 		);
-		$this->map1to1BlockWithMeta(
-			Ids::SKULL,
-			Blocks::MOB_HEAD(),
-			function(MobHead $block, int $meta) : void{
-				$block->setMobHeadType(MobHeadTypeIdMap::getInstance()->fromId($meta) ?? throw new ItemTypeDeserializeException("Unknown mob head type ID $meta"));
-			},
-			fn(MobHead $block) => MobHeadTypeIdMap::getInstance()->toId($block->getMobHeadType())
-		);
 	}
 
 	/**

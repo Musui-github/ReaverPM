@@ -1,6 +1,6 @@
 <?php
 
-namespace pocketmine\reaper\decode;
+namespace pocketmine\reaper\operation;
 
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\ServerboundPacket;

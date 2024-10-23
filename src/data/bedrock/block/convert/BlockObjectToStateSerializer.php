@@ -223,6 +223,9 @@ final class BlockObjectToStateSerializer implements BlockStateSerializer{
 	 * @phpstan-param \Closure(TBlockType) : Writer $serializer
 	 */
 	public function map(Block $block, \Closure $serializer) : void{
+		if(isset($this->serializers[$block->getTypeId()])){
+			throw new \InvalidArgumentException("Block type ID " . $block->getTypeId() . " already has a serializer registered");
+		}
 		$this->serializers[$block->getTypeId()] = $serializer;
 	}
 
@@ -755,18 +758,15 @@ final class BlockObjectToStateSerializer implements BlockStateSerializer{
 	}
 
 	private function registerMobHeadSerializers() : void{
-		foreach([
-			Ids::CREEPER_HEAD => MobHeadType::CREEPER,
-			Ids::DRAGON_HEAD => MobHeadType::DRAGON,
-			Ids::PIGLIN_HEAD => MobHeadType::PIGLIN,
-			Ids::PLAYER_HEAD => MobHeadType::PLAYER,
-			Ids::SKELETON_SKULL => MobHeadType::SKELETON,
-			Ids::WITHER_SKELETON_SKULL => MobHeadType::WITHER_SKELETON,
-			Ids::ZOMBIE_HEAD => MobHeadType::ZOMBIE
-		] as $id => $mobHeadType){
-			$this->map(Blocks::MOB_HEAD()->setMobHeadType($mobHeadType), fn(MobHead $block) => Writer::create($id)
-				->writeFacingWithoutDown($block->getFacing()));
-		}
+		$this->map(Blocks::MOB_HEAD(), fn(MobHead $block) => Writer::create(match ($block->getMobHeadType()){
+			MobHeadType::CREEPER => Ids::CREEPER_HEAD,
+			MobHeadType::DRAGON => Ids::DRAGON_HEAD,
+			MobHeadType::PIGLIN => Ids::PIGLIN_HEAD,
+			MobHeadType::PLAYER => Ids::PLAYER_HEAD,
+			MobHeadType::SKELETON => Ids::SKELETON_SKULL,
+			MobHeadType::WITHER_SKELETON => Ids::WITHER_SKELETON_SKULL,
+			MobHeadType::ZOMBIE => Ids::ZOMBIE_HEAD,
+		})->writeFacingWithoutDown($block->getFacing()));
 	}
 
 	private function registerSimpleSerializers() : void{
